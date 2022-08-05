@@ -307,16 +307,16 @@ class MatrixTransformationScene(CGScene):
             },
             {
                 "operation": "scale",
-                "data": 3,
-                "description": "\mathrm{Scaling\,by\,}3",
+                "data": [3, 2],
+                "description": "\mathrm{Scaling\,by\,}(3, 2)",
                 "transform_matrix": [
                     ["3", "0", "0"],
-                    ["0", "3", "0"],
+                    ["0", "2", "0"],
                     ["0", "0", "1"]
                 ],
                 "result_matrix": [
                     ["\\frac{3\sqrt{2}}{2}", "-\\frac{3\sqrt{2}}{2}", "3\sqrt{2} + 3"],
-                    ["\\frac{3\sqrt{2}}{2}", "\\frac{3\sqrt{2}}{2}", "3\sqrt{2} - 3"],
+                    ["\sqrt{2}", "\sqrt{2}", "2\sqrt{2} - 2"],
                     ["0", "0", "1"]
                 ],
             },
@@ -329,16 +329,12 @@ class MatrixTransformationScene(CGScene):
     def animate(self):
         # Creation
 
+        # Calculate center
         scale = self.MATRIX_TRANSFORMATION_SETTINGS["scale"]
         grid_range = self.MATRIX_TRANSFORMATION_SETTINGS["grid_range"]
         center = np.array([-6.5 - scale * grid_range[0][0], -0.3 - scale * sum(grid_range[1]) / 2, 0])
 
-        points = [
-            np.array([0.0, 0.0, 0.0]),
-            np.array([1.0, 0.0, 0.0]),
-            np.array([0.0, 1.0, 0.0])
-        ]
-
+        # Grid group
         grid_group = Group()
         for iy in range(grid_range[1][0] + 1, grid_range[1][1]):
             if iy == 0:
@@ -350,14 +346,18 @@ class MatrixTransformationScene(CGScene):
                 continue
             new_line = Line(center + scale * np.array([ix, grid_range[1][0], 0]), center + scale * np.array([ix, grid_range[1][1], 0]), color="#5F5F5F")
             grid_group.add(new_line)
-
         x_axis = Line(center + scale * np.array([grid_range[0][0], 0, 0]), center + scale * np.array([grid_range[0][1], 0, 0]), color="#9F9F9F")
         y_axis = Line(center + scale * np.array([0, grid_range[1][0], 0]), center + scale * np.array([0, grid_range[1][1], 0]), color="#9F9F9F")
         grid_group.add(x_axis, y_axis)
 
-        u_arrow = Arrow().put_start_and_end_on(center + scale * points[0], center + scale * points[1]).set_color("#FF0000")
-        v_arrow = Arrow().put_start_and_end_on(center + scale * points[0], center + scale * points[2]).set_color("#00FF00")
+        # Object group
+        object_group = Group()
+        u_arrow = Arrow().put_start_and_end_on(center, center + scale * RIGHT).set_color("#FF0000")
+        v_arrow = Arrow().put_start_and_end_on(center, center + scale * UP).set_color("#00FF00")
+        unit_square = Square(side_length=scale).move_to(center + 0.5 * scale * (UP + RIGHT)).set_color("#FFFF00").set_opacity(0.5).set_fill("#FFFF00", opacity=0.25)
+        object_group.add(unit_square, v_arrow, u_arrow)
         
+        # Current matrix
         current_matrix = Matrix(
             [["1", "0", "0"], ["0", "1", "0"], ["0", "0", "1"]],
             h_buff = 1.6,
@@ -365,8 +365,8 @@ class MatrixTransformationScene(CGScene):
         ).scale(0.6).shift(RIGHT * 5 + DOWN * 2)
         current_matrix_text = Tex("\mathrm{Current}").scale(0.5).next_to(current_matrix, UP)
         
+        # List of transformations
         transformations = self.MATRIX_TRANSFORMATION_SETTINGS["transformations"]
-
         description_texts = [
             Tex(j["description"]).scale(0.75).set_color("#7F7F7F") for j in transformations
         ]
@@ -376,10 +376,10 @@ class MatrixTransformationScene(CGScene):
 
         # Animation
 
+        # Fade in
         self.play(
             FadeIn(grid_group),
-            FadeIn(u_arrow),
-            FadeIn(v_arrow),
+            FadeIn(object_group),
             FadeIn(current_matrix),
             FadeIn(current_matrix_text),
             FadeIn(description_group),
@@ -390,6 +390,7 @@ class MatrixTransformationScene(CGScene):
             transformation = transformations[i]
             operation = transformation["operation"]
 
+            # Get new matrices
             transform_matrix = Matrix(
                 transformation["transform_matrix"],
                 h_buff = 1.6,
@@ -406,6 +407,7 @@ class MatrixTransformationScene(CGScene):
 
             self.wait(0.5)
 
+            # Show transform matrix
             self.play(
                 FadeIn(transform_matrix),
                 FadeIn(description_text),
@@ -416,6 +418,7 @@ class MatrixTransformationScene(CGScene):
 
             self.wait(0.5)
 
+            # Determine transformation animations
             actions = [
                 FadeOut(transform_matrix, RIGHT * 3),
                 FadeOut(description_text, RIGHT * 3),
@@ -425,52 +428,46 @@ class MatrixTransformationScene(CGScene):
             ]
             if operation == "translate":
                 offset = transformation["data"]
-                for j in range(len(points)):
-                    points[j] += np.array([offset[0], offset[1], 0])
-                actions.extend([
-                    u_arrow.animate.put_start_and_end_on(center + scale * points[0], center + scale * points[1]),
-                    v_arrow.animate.put_start_and_end_on(center + scale * points[0], center + scale * points[2]),
-                ])
+                actions.append(
+                    object_group.animate.shift((scale * offset[0], scale * offset[1], 0))
+                )
             elif operation == "scale":
                 factor = transformation["data"]
-                for j in range(len(points)):
-                    points[j] *= float(factor)
-                actions.extend([
-                    u_arrow.animate.put_start_and_end_on(center + scale * points[0], center + scale * points[1]),
-                    v_arrow.animate.put_start_and_end_on(center + scale * points[0], center + scale * points[2]),
-                ])
+                object_group.generate_target()
+                object_group.target.stretch(
+                    factor[0],
+                    0,
+                    about_point = center
+                ),
+                object_group.target.stretch(
+                    factor[1],
+                    1,
+                    about_point = center
+                )
+                actions.append(
+                    MoveToTarget(object_group)
+                )
             elif operation == "rotate":
                 angle = transformation["data"]
-                for j in range(len(points)):
-                    points[j] = np.array([
-                        cos(angle) * points[j][0] - sin(angle) * points[j][1],
-                        sin(angle) * points[j][0] + cos(angle) * points[j][1],
-                        0
-                    ])
-                actions.extend([
+                actions.append(
                     Rotate(
-                        u_arrow,
+                        object_group,
                         angle,
                         axis = np.array([0, 0, 1]),
                         about_point = center
-                    ),
-                    Rotate(
-                        v_arrow,
-                        angle,
-                        axis = np.array([0, 0, 1]),
-                        about_point = center
-                    ),
-                ])
+                    )
+                )
 
             self.play(
                 *actions,
                 run_time = 1
             )
 
+            # Update current matrix
             current_matrix = result_matrix
 
-PREVIEW = False
-ANIMATION = "ReflectionRayScene"
+PREVIEW = True
+ANIMATION = "MatrixTransformationScene"
 SKIP_TO = 0
 
 if __name__ == "__main__":
