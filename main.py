@@ -12,6 +12,33 @@ class CGScene(Scene):
     def all_objects(self):
         return Group(*filter(lambda x: issubclass(type(x), Mobject), self.mobjects)).remove(self.background, self.title_text)
 
+    def generate_grid(self, grid_range):
+        grid_group = Group()
+
+        for iy in range(grid_range[1][0] + 1, grid_range[1][1]):
+            if iy == 0:
+                continue
+            new_line = Line(np.array([grid_range[0][0], iy, 0]), np.array([grid_range[0][1], iy, 0]), color="#5F5F5F")
+            grid_group.add(new_line)
+
+        for ix in range(grid_range[0][0] + 1, grid_range[0][1]):
+            if ix == 0:
+                continue
+            new_line = Line((ix, grid_range[1][0], 0), (ix, grid_range[1][1], 0), color="#5F5F5F")
+            grid_group.add(new_line)
+
+        x_axis = Line(np.array([grid_range[0][0], 0, 0]), np.array([grid_range[0][1], 0, 0]), color="#9F9F9F")
+        y_axis = Line(np.array([0, grid_range[1][0], 0]), np.array([0, grid_range[1][1], 0]), color="#9F9F9F")
+        grid_group.add(x_axis, y_axis)
+
+        return grid_group
+
+    def generate_crosshairs(self):
+        u_arrow = Arrow().put_start_and_end_on(ORIGIN, RIGHT).set_color("#FF0000")
+        v_arrow = Arrow().put_start_and_end_on(ORIGIN, UP).set_color("#00FF00")
+        unit_square = Square(side_length=1.0).move_to((0.5, 0.5, 0)).set_color("#FFFF00").set_opacity(0.5).set_fill("#FFFF00", opacity=0.25)
+        return Group(unit_square, v_arrow, u_arrow)
+
     def construct(self):
         # Background
         self.background_color = "#36393F"
@@ -20,13 +47,11 @@ class CGScene(Scene):
 
         # Title
         self.title_text = Text(self.get_title())
-        self.title_text.scale(2)
-        self.add(self.title_text)
-
-        # Move title
         self.title_text.generate_target()
+        self.title_text.set_width(13)
+        self.add(self.title_text)
         self.title_text.target.set_fill("#FFFFFF", 0.5)
-        self.title_text.target.scale(0.3)
+        self.title_text.target.scale(0.6)
         self.title_text.target.to_corner(LEFT + UP)
         self.play(
             MoveToTarget(self.title_text),
@@ -114,7 +139,7 @@ class ReflectionRayScene(CGScene):
 
         explanation_text_a = Text("This formula works if L is defined as pointing\nfrom surface to light source.").scale(0.8).move_to(RIGHT + UP * 1.8)
         explanation_text_b = Text("If L is defined as pointing from light source\nto surface, the formula is negated:").scale(0.8).move_to(RIGHT + DOWN * 0.8)
-        
+
         negative_formula_texts = [
             Tex("R", color="#FF007F"),
             Tex("="),
@@ -335,28 +360,12 @@ class MatrixTransformationScene(CGScene):
         center = np.array([-6.5 - scale * grid_range[0][0], -0.3 - scale * sum(grid_range[1]) / 2, 0])
 
         # Grid group
-        grid_group = Group()
-        for iy in range(grid_range[1][0] + 1, grid_range[1][1]):
-            if iy == 0:
-                continue
-            new_line = Line(center + scale * np.array([grid_range[0][0], iy, 0]), center + scale * np.array([grid_range[0][1], iy, 0]), color="#5F5F5F")
-            grid_group.add(new_line)
-        for ix in range(grid_range[0][0] + 1, grid_range[0][1]):
-            if ix == 0:
-                continue
-            new_line = Line(center + scale * np.array([ix, grid_range[1][0], 0]), center + scale * np.array([ix, grid_range[1][1], 0]), color="#5F5F5F")
-            grid_group.add(new_line)
-        x_axis = Line(center + scale * np.array([grid_range[0][0], 0, 0]), center + scale * np.array([grid_range[0][1], 0, 0]), color="#9F9F9F")
-        y_axis = Line(center + scale * np.array([0, grid_range[1][0], 0]), center + scale * np.array([0, grid_range[1][1], 0]), color="#9F9F9F")
-        grid_group.add(x_axis, y_axis)
+        grid_group = self.generate_grid(grid_range).scale(scale, about_point=ORIGIN).shift(center)
 
         # Object group
-        object_group = Group()
-        u_arrow = Arrow().put_start_and_end_on(center, center + scale * RIGHT).set_color("#FF0000")
-        v_arrow = Arrow().put_start_and_end_on(center, center + scale * UP).set_color("#00FF00")
-        unit_square = Square(side_length=scale).move_to(center + 0.5 * scale * (UP + RIGHT)).set_color("#FFFF00").set_opacity(0.5).set_fill("#FFFF00", opacity=0.25)
-        object_group.add(unit_square, v_arrow, u_arrow)
-        
+        object_group = self.generate_crosshairs()
+        object_group.scale(scale, about_point=ORIGIN).shift(center)
+
         # Current matrix
         current_matrix = Matrix(
             [["1", "0", "0"], ["0", "1", "0"], ["0", "0", "1"]],
@@ -364,7 +373,7 @@ class MatrixTransformationScene(CGScene):
             v_buff = 1.5
         ).scale(0.6).shift(RIGHT * 5 + DOWN * 2)
         current_matrix_text = Tex("\mathrm{Current}").scale(0.5).next_to(current_matrix, UP)
-        
+
         # List of transformations
         transformations = self.MATRIX_TRANSFORMATION_SETTINGS["transformations"]
         description_texts = [
@@ -466,8 +475,322 @@ class MatrixTransformationScene(CGScene):
             # Update current matrix
             current_matrix = result_matrix
 
-PREVIEW = True
-ANIMATION = "MatrixTransformationScene"
+class MatrixOrderScene(CGScene):
+    def get_title(self):
+        return "Right-To-Left or Left-To-Right?"
+
+    def animate(self):
+        matrices = [
+            Matrix(
+                [["\cos(\pi / 4)", "-\sin(\pi / 4)", "0"], ["\sin(\pi / 4)", "\cos(\pi / 4)", "0"], ["0", "0", "1"]],
+                h_buff = 2.2
+            ),
+            Matrix(
+                [["1", "0", "2"], ["0", "1", "1"], ["0", "0", "1"]],
+                h_buff = 0.8
+            ),
+            Matrix(
+                [["0.5", "0", "0"], ["0", "0.5", "0"], ["0", "0", "1"]],
+                h_buff = 0.8
+            ),
+        ]
+        matrix_descriptions_texts = [
+            Text("Rotate by π/4"),
+            Text("Translate by (2, 1)"),
+            Text("Scale by 0.5"),
+        ]
+        matrix_group = Group(*matrices)
+        matrix_group.arrange(RIGHT)
+
+        for i in range(len(matrix_descriptions_texts)):
+            matrix_descriptions_texts[i].scale(0.6).next_to(matrices[i], UP).set_color("#BFBFBF")
+        matrix_group.add(*matrix_descriptions_texts)
+        matrix_group.scale(0.9).move_to(UP)
+
+        self.play(
+            FadeIn(matrix_group)
+        )
+
+        explanation_text_a = Text("Suppose we have a few operations strung together by multiplying their matrices.").scale(0.8).move_to(DOWN * 1.5)
+        self.play(
+            FadeIn(explanation_text_a, UP)
+        )
+        self.wait(4)
+
+        matrix_group.generate_target()
+        matrix_group.target.scale(0.75)
+        matrix_group.target.shift(RIGHT * 2.5 + UP * 0.5)
+
+        scale = 0.7
+        center = np.array([-6, -1, 0])
+        grid_group = self.generate_grid(((-1, 5), (-1, 5))).scale(scale, about_point=ORIGIN).shift(center)
+        object_group = self.generate_crosshairs().scale(scale, about_point=ORIGIN).shift(center)
+        right_to_left_arrow = Arrow((6.7, 0.3, 0), (-1.7, 0.3, 0)).set_color("#00BFFF")
+        left_to_right_arrow = Arrow((-1.7, 0, 0), (6.7, 0, 0)).set_color("#FF7F00")
+        explanation_text_b = Text(
+            "When applying these operations one at a time, should we read them right-to-left or left-to-right?",
+            t2c={"right-to-left": "#00BFFF", "left-to-right": "#FF7F00"}
+        ).scale(0.8).move_to(DOWN * 2.6)
+        self.play(
+            FadeOut(explanation_text_a),
+            ShowCreation(right_to_left_arrow),
+            ShowCreation(left_to_right_arrow),
+            FadeIn(grid_group),
+            FadeIn(object_group),
+            FadeIn(explanation_text_b, UP),
+            MoveToTarget(matrix_group)
+        )
+        self.wait(4)
+
+        explanation_text_c = Text(
+            "The usual way is right-to-left, as long as each operation is done from the perspective of the origin.",
+            t2c={"right-to-left": "#00BFFF", "perspective of the origin": "#FFFF00"}
+        ).scale(0.8).move_to(DOWN * 2.6)
+        self.play(
+            FadeOut(explanation_text_b),
+            FadeOut(left_to_right_arrow),
+            FadeIn(explanation_text_c, UP)
+        )
+
+        # RTL: Scale
+        rtl_scale_group = Group(
+            *[Circle(radius=j).set_color("#00BFFF") for j in range(4)]
+        ).scale(scale, about_point=ORIGIN).shift(center)
+        self.play(
+            ShowCreation(rtl_scale_group),
+            run_time = 1
+        )
+        self.wait(0.5)
+
+        self.play(
+            Indicate(matrices[2], color="#00BFFF"),
+            object_group.animate.scale(
+                0.5,
+                about_point = center
+            ),
+            rtl_scale_group.animate.scale(
+                0.5,
+                about_point = center
+            ),
+            run_time = 2
+        )
+        self.play(
+            Uncreate(rtl_scale_group),
+            run_time = 1
+        )
+
+        # RTL: Translate
+        rtl_translate_group = Group(
+            Arrow(stroke_width=8).put_start_and_end_on(ORIGIN, RIGHT * 2).set_color("#00BFFF"),
+            Arrow(stroke_width=8).put_start_and_end_on(RIGHT * 2, RIGHT * 2 + UP).set_color("#00BFFF"),
+        ).scale(scale, about_point=ORIGIN).shift(center)
+        self.play(
+            ShowCreation(rtl_translate_group),
+            run_time = 1
+        )
+        self.wait(0.5)
+
+        self.play(
+            Indicate(matrices[1], color="#00BFFF"),
+            object_group.animate.shift((2 * scale, scale, 0)),
+            run_time = 2
+        )
+        self.play(
+            Uncreate(rtl_translate_group),
+            run_time = 1
+        )
+
+        # RTL: Rotate
+        rtl_rotate_group = Group(
+            *[Square(2 * j).set_color("#00BFFF") for j in range(4)]
+        ).scale(scale, about_point=ORIGIN).shift(center)
+        self.play(
+            ShowCreation(rtl_rotate_group),
+            run_time = 1
+        )
+        self.wait(0.5)
+
+        self.play(
+            Indicate(matrices[0], color="#00BFFF"),
+            Rotate(
+                object_group,
+                pi / 4,
+                about_point = center
+            ),
+            Rotate(
+                rtl_rotate_group,
+                pi / 4,
+                about_point = center
+            ),
+            run_time = 2
+        )
+        self.play(
+            Uncreate(rtl_rotate_group),
+            run_time = 1
+        )
+        self.wait(0.5)
+
+        explanation_text_d = Text(
+            "Right-to-left also makes sense in the math, since the matrix that is closest to the vector (on the right) is applied first.",
+            t2c={"Right-to-left": "#00BFFF", "vector": "#FF00FF"}
+        ).scale(0.8).move_to(DOWN * 2.6)
+        vector_matrix = Matrix([["x"], ["y"], ["1"]]).scale(0.75).next_to(matrices[2], RIGHT).shift(LEFT * 0.6).set_color("#FF00FF")
+        self.play(
+            FadeOut(explanation_text_c),
+            FadeIn(explanation_text_d, UP),
+            matrix_group.animate.shift(LEFT * 0.5),
+            FadeIn(vector_matrix, LEFT),
+            run_time = 1
+        )
+        self.wait(4)
+
+        new_object_group = self.generate_crosshairs().scale(scale, about_point=ORIGIN).shift(center)
+        explanation_text_e = Text(
+            "However, there is also a different method of applying operations, for which left-to-right reading can be used.",
+            t2c={"left-to-right": "#FF7F00"}
+        ).scale(0.8).move_to(DOWN * 2.6)
+        self.play(
+            FadeOut(explanation_text_d),
+            FadeIn(explanation_text_e, UP),
+            matrix_group.animate.shift(RIGHT * 0.5),
+            FadeOut(vector_matrix, RIGHT),
+            FadeOut(object_group),
+            FadeIn(new_object_group),
+            Uncreate(right_to_left_arrow),
+            ShowCreation(left_to_right_arrow),
+        )
+        self.wait(4)
+
+        object_group = new_object_group
+        explanation_text_f = Text(
+            "This new method requires you to move an object from its own perspective, instead of the origin's perspective.",
+            t2c={"its own perspective": "#FFFF00"}
+        ).scale(0.8).move_to(DOWN * 2.6)
+        self.play(
+            FadeOut(explanation_text_e),
+            FadeIn(explanation_text_f, UP),
+        )
+
+        # LTR: Rotate
+        ltr_rotate_group = Group(
+            *[Square(2 * j).set_color("#FF7F00") for j in range(4)]
+        ).scale(scale, about_point=ORIGIN).shift(center)
+        self.play(
+            ShowCreation(ltr_rotate_group),
+            run_time = 1
+        )
+        self.wait(0.5)
+
+        self.play(
+            Indicate(matrices[0], color="#FF7F00"),
+            Rotate(
+                grid_group,
+                -pi / 4,
+                about_point = center
+            ),
+            run_time = 2
+        )
+        self.play(
+            Uncreate(ltr_rotate_group),
+            run_time = 1
+        )
+
+        # LTR: Translate
+        ltr_translate_group = Group(
+            Arrow(stroke_width=8).put_start_and_end_on(ORIGIN, RIGHT * 2).set_color("#FF7F00"),
+            Arrow(stroke_width=8).put_start_and_end_on(RIGHT * 2, RIGHT * 2 + UP).set_color("#FF7F00"),
+        ).scale(scale, about_point=ORIGIN).shift(center)
+        self.play(
+            ShowCreation(ltr_translate_group),
+            run_time = 1
+        )
+        self.wait(0.5)
+
+        self.play(
+            Indicate(matrices[1], color="#FF7F00"),
+            grid_group.animate.shift((-2 * scale, -scale, 0)),
+            ltr_translate_group.animate.shift((-2 * scale, -scale, 0)),
+            run_time = 2
+        )
+        self.play(
+            Uncreate(ltr_translate_group),
+            run_time = 1
+        )
+        self.wait(0.5)
+
+        # LTR: Scale
+        ltr_scale_group = Group(
+            *[Circle(radius=j).set_color("#FF7F00") for j in range(4)]
+        ).scale(scale, about_point=ORIGIN).shift(center)
+        self.play(
+            ShowCreation(ltr_scale_group),
+            run_time = 1
+        )
+        self.wait(0.5)
+
+        self.play(
+            Indicate(matrices[2], color="#FF7F00"),
+            grid_group.animate.scale(
+                2,
+                about_point = center
+            ),
+            run_time = 2
+        )
+        self.play(
+            Uncreate(ltr_scale_group),
+            run_time = 1
+        )
+        self.wait(0.5)
+
+        explanation_text_g = Text(
+            "Relative to the grid, the object is in the exact same spot as before. Rewind the video to check it out."
+        ).scale(0.8).move_to(DOWN * 2.6)
+        self.play(
+            FadeOut(explanation_text_f),
+            FadeIn(explanation_text_g, UP),
+        )
+        self.wait(4)
+
+        explanation_text_h = Text(
+            "With this kind of movement, every move is relative to\nthe object being transformed.\nDirections depend on its current angle and size, and the center of rotation/scaling is the object itself.",
+            t2c={"relative to\nthe object": "#FFFF00"}
+        ).scale(0.8).move_to(DOWN * 2.6)
+        self.play(
+            FadeOut(explanation_text_g),
+            FadeIn(explanation_text_h, UP),
+        )
+        self.wait(6)
+
+        old_objects = self.all_objects()
+        right_to_left_arrow = Arrow().put_start_and_end_on(np.array([5, 2, 0]), np.array([-5, 2, 0])).set_color("#00BFFF")
+        right_to_left_text = Text("From perspective of origin", color="#00BFFF").scale(0.75).move_to((0, 2.4, 0))
+        left_to_right_arrow = Arrow().put_start_and_end_on(np.array([-5, 0.8, 0]), np.array([5, 0.8, 0])).set_color("#FF7F00")
+        left_to_right_text = Text("From perspective of object", color="#FF7F00").scale(0.75).move_to((0, 1.2, 0))
+        explanation_text_i = Text(
+            "Depending on the situation, either of these reading orders might feel more intuitive to you. You can always use either interpretation.",
+        ).scale(0.8).move_to(DOWN * 1.5)
+        self.play(
+            FadeOut(old_objects),
+            ShowCreation(right_to_left_arrow),
+            ShowCreation(left_to_right_arrow),
+            FadeIn(right_to_left_text),
+            FadeIn(left_to_right_text),
+            FadeIn(explanation_text_i, UP),
+        )
+        self.wait(6)
+
+        explanation_text_j = Text(
+            "It is just important to know the difference between the two, to avoid making mistakes or brute-forcing your transformations.",
+            t2c={"know the difference": "#FFFF00"}
+        ).scale(0.8).move_to(DOWN * 1.5)
+        self.play(
+            FadeOut(explanation_text_i),
+            FadeIn(explanation_text_j, UP),
+        )
+        self.wait(2)
+
+PREVIEW = False
+ANIMATION = "MatrixOrderScene"
 SKIP_TO = 0
 
 if __name__ == "__main__":
