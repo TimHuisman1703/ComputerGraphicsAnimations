@@ -5,12 +5,14 @@ import os
 
 DIRECTORY = os.path.realpath(os.path.dirname(__file__))
 
+BACKGROUND_COLOR = "#36393F"
+
 class CGScene(Scene):
     def get_title(self):
         return "Untitled"
 
     def all_objects(self):
-        return Group(*filter(lambda x: issubclass(type(x), Mobject), self.mobjects)).remove(self.background, self.title_text)
+        return Group(*filter(lambda x: issubclass(type(x), Mobject), self.mobjects)).remove(self.title_text, self.camera.frame)
 
     def generate_grid(self, grid_range):
         grid_group = Group()
@@ -38,29 +40,53 @@ class CGScene(Scene):
         v_arrow = Arrow().put_start_and_end_on(ORIGIN, UP).set_color("#00FF00")
         unit_square = Square(side_length=1.0).move_to((0.5, 0.5, 0)).set_color("#FFFF00").set_opacity(0.5).set_fill("#FFFF00", opacity=0.25)
         return Group(unit_square, v_arrow, u_arrow)
+
+    def get_animation_number(self):
+        return self.num_plays
     
+    def pin_to_front(self, obj, starting_from=0):
+        if type(obj) in [Group, VGroup]:
+            for sub_mob in obj:
+                self.pin_to_front(sub_mob)
+
+        obj.pin_lambda = lambda m, dt: exec(["pass", "self.bring_to_front(m)"][self.get_animation_number() > starting_from])
+        obj.add_updater(obj.pin_lambda)
+    
+    def unpin_from_front(self, obj):
+        if type(obj) in [Group, VGroup]:
+            for sub_mob in obj:
+                self.unpin_from_front(sub_mob)
+        
+        try:
+            if obj.pin_lambda:
+                obj.remove_updater(obj.pin_lambda)
+        except:
+            pass
+
     def swap_caption(self, text, **kwargs):
         t2c = kwargs.get("t2c", {})
         scale = kwargs.get("scale", 0.8)
         color = kwargs.get("color", "#FFFFFF")
         pos = kwargs.get("pos", DOWN * 2.6)
-        new_caption = Text(text, t2c=t2c, color=color).scale(scale).shift(pos)
+        new_caption = Text(text, t2c=t2c, color=color).scale(scale).shift(pos).fix_in_frame()
+
+        self.pin_to_front(new_caption, self.get_animation_number())
+        if self.caption:
+            self.unpin_from_front(self.caption)
+
         actions = [FadeIn(new_caption, UP)]
         if self.caption:
-            actions.append(FadeOut(self.caption))
+            actions.extend([FadeOut(self.caption)])
         self.caption = new_caption
         return actions
 
     def construct(self):
-        # Background
-        self.background_color = "#36393F"
-        self.background = Rectangle(15, 10, color=self.background_color, fill_opacity=1)
-        self.add(self.background)
-
         # Title
         self.title_text = Text(self.get_title())
+        self.title_text.fix_in_frame()
         self.title_text.generate_target()
         self.title_text.set_width(13)
+        self.title_text.fix_in_frame()
         self.add(self.title_text)
         self.title_text.target.set_fill("#FFFFFF", 0.5)
         self.title_text.target.scale(0.6)
@@ -678,7 +704,7 @@ class MatrixOrderScene(CGScene):
 
         object_group = new_object_group
         explanation_text_f = Text(
-            "This new method requires you to move an object from its own perspective, instead of the origin's perspective.",
+            "This new method requires us to move an object from its own perspective, instead of the origin's perspective.",
             t2c={"its own perspective": "#FFFF00"}
         ).scale(0.8).move_to(DOWN * 2.6)
         self.play(
@@ -807,7 +833,7 @@ class MatrixOrderScene(CGScene):
 class AlphaBlendScene(CGScene):
     def get_title(self):
         return "Alpha Blending"
-    
+
     def animate(self):
         self.black_background = RoundedRectangle(width=4, height=4, corner_radius=0.5, stroke_opacity=0, fill_opacity=1).shift(UP * 1.5).set_fill("#000000")
         alpha_slider_line = Line(LEFT * 4 + DOWN * 1.35, RIGHT * 4 + DOWN * 1.35, stroke_width=4, color="#BFBFBF")
@@ -840,7 +866,7 @@ class AlphaBlendScene(CGScene):
                 self.alpha_slider_triangle.animate.move_to(RIGHT * (8 * alpha - 4) + DOWN * 1.6),
                 self.blue_square.animate.set_fill(opacity=alpha)
             ]
-        
+
         self.wait(1)
         self.play(
             *set_alpha(0.2),
@@ -859,7 +885,7 @@ class AlphaBlendScene(CGScene):
             run_time = 1.5
         )
         self.wait(3)
-        
+
         self.play(
             *set_alpha(1.0),
             *self.swap_caption("An alpha of 1.0 means the color is opaque and not transparent at all."),
@@ -957,10 +983,10 @@ class AlphaBlendScene(CGScene):
                 FadeIn(formula_text_a, LEFT),
                 run_time = 0.8
             )
-            
+
             self.rectangle_group.remove(brace)
             self.add(brace)
-            
+
             if iteration == 0:
                 self.wait(2)
 
@@ -1050,7 +1076,7 @@ class AlphaBlendScene(CGScene):
             j.generate_target()
             j.target.scale(1.2)
             j.target.set_color("#FFFF00")
-        
+
         brace = Brace(self.rectangle_group[2], RIGHT)
         brace_text = Text("0.14").scale(0.6).next_to(brace, RIGHT)
         brace_group = Group(brace, brace_text)
@@ -1061,12 +1087,529 @@ class AlphaBlendScene(CGScene):
         )
         self.wait(2)
 
+class CameraProjectionScene(CGScene):
+    def get_title(self):
+        return "Camera Projection"
+
+    def animate(self):
+        self.play(
+            *self.swap_caption(
+                "When a camera takes a picture of a scene, each point in space is mapped to a pixel on screen.",
+                t2c={"point in space": "#FFFF00", "pixel on screen": "#FFFF00"}
+            )
+        )
+        self.wait(4)
+
+        self.play(
+            *self.swap_caption(
+                "This conversion from 3D to 2D is done using three matrices.",
+            )
+        )
+
+        matrix_group = Group(
+            Matrix([
+                ["k_x", "0", "0", "x_0"],
+                ["0", "k_y", "0", "y_0"],
+                ["0", "0", "1", "0"],
+                ["0", "0", "0", "1"],
+            ]),
+            MobjectMatrix([
+                [Tex("\\frac{f}{aspect}").scale(0.75), Tex("0"), Tex("0"), Tex("0")],
+                [Tex("0"), Tex("f"), Tex("0"), Tex("0")],
+                [Tex("0"), Tex("0"), Tex("\\frac{near+far}{near-far}").scale(0.45), Tex("\\frac{2 \cdot near \cdot far}{near-far}").scale(0.45)],
+                [Tex("0"), Tex("0"), Tex("-1"), Tex("0")]
+            ]),
+            Matrix([
+                ["m_{00}", "m_{01}", "m_{02}", "t_0"],
+                ["m_{10}", "m_{11}", "m_{12}", "t_1"],
+                ["m_{20}", "m_{21}", "m_{22}", "t_2"],
+                ["0", "0", "0", "1"],
+            ])
+        ).arrange(RIGHT).scale(0.8).move_to(UP)
+        matrix_group.add(
+            Text("Image", color="#BFBFBF").scale(0.75).next_to(matrix_group[0], DOWN),
+            Text("Projection", color="#BFBFBF").scale(0.75).next_to(matrix_group[1], DOWN),
+            Text("Model View", color="#BFBFBF").scale(0.75).next_to(matrix_group[2], DOWN)
+        ).fix_in_frame()
+
+        self.play(
+            FadeIn(matrix_group)
+        )
+        self.wait(3.5)
+
+        object_group = Group(
+            Cube(color="#00BF00").scale(2).stretch(0.05, 2).shift(0.05 * IN),
+            Sphere(radius=0.9, color="#7F007F").shift((-0.7, -0.3, 0.9)),
+            Sphere(radius=0.5, color="#FF0000").shift((0.9, 0.2, 0.5)),
+            Sphere(radius=0.3, color="#007FFF").shift((0.7, 1.4, 0.3))
+        )
+
+        axes = ThreeDAxes(
+            x_range=[-3, 3, 1],
+            y_range=[-3, 3, 1],
+            z_range=[-3, 3, 1]
+        )
+        negative_x_label = Tex("-x").move_to(LEFT * 3.5)
+        positive_x_label = Tex("x").move_to(RIGHT * 3.5)
+        negative_y_label = Tex("-y").move_to(DOWN * 3.5)
+        positive_y_label = Tex("y").move_to(UP * 3.5)
+        negative_z_label = Tex("-z").move_to(IN * 3.5)
+        positive_z_label = Tex("z").move_to(OUT * 3.5)
+        axes_group = Group(
+            axes,
+            negative_x_label,
+            positive_x_label,
+            negative_y_label,
+            positive_y_label,
+            negative_z_label,
+            positive_z_label
+        )
+        axes_group.rotate(pi / 2, RIGHT)
+
+        CAMERA_THETA = 130 * DEGREES
+        CAMERA_PHI = -30 * DEGREES
+        CAMERA_POSITION = np.array([sin(CAMERA_THETA) * sin(90 * DEGREES + CAMERA_PHI) * 4, -cos(CAMERA_THETA) * sin(90 * DEGREES + CAMERA_PHI) * 4, cos(90 * DEGREES + CAMERA_PHI) * 4])
+        NEAR = 1
+        FAR = 5
+        F = 2
+        ASPECT = 16 / 9
+
+        points = [UP + (2 * (j < 2) - 1) * RIGHT * ASPECT / F + (2 * (0 < j < 3) - 1) * IN / F for j in range(4)]
+
+        camera_group = Group(
+            Sphere(radius=0.1, color="#7FFFFF"),
+            *[Line(ORIGIN, 6 * points[j], stroke_width=2, color="#7FFFFF") for j in range(4)],
+        )
+        unit_cube_group = Group(
+            *[Line(NEAR * points[j], FAR * points[j], stroke_width=2, color="#7FFFFF") for j in range(4)],
+            *[Line(NEAR * points[j - 1], NEAR * points[j], stroke_width=2, color="#FFBF7F") for j in range(4)],
+            *[Line(FAR * points[j - 1], FAR * points[j], stroke_width=2, color="#FF7FBF") for j in range(4)],
+        )
+        camera_group.rotate_about_origin(CAMERA_PHI, RIGHT).rotate_about_origin(CAMERA_THETA, OUT).shift(CAMERA_POSITION)
+        unit_cube_group.rotate_about_origin(CAMERA_PHI, RIGHT).rotate_about_origin(CAMERA_THETA, OUT).shift(CAMERA_POSITION)
+
+        self.play(
+            FadeOut(matrix_group),
+            *self.swap_caption("Let's look at these operations one by one.\nSuppose we have a scene, and a camera observing it."),
+        )
+
+        self.camera.frame.set_euler_angles(
+            theta=20 * DEGREES,
+            phi=55 * DEGREES
+        ),
+        self.play(
+            ShowCreation(axes_group),
+            run_time = 1.2
+        )
+        self.play(
+            FadeIn(object_group)
+        )
+        self.play(
+            FadeIn(camera_group),
+            FadeIn(unit_cube_group)
+        )
+        self.wait(3)
+
+        self.camera.frame.generate_target()
+        self.camera.frame.target.set_euler_angles(
+            theta=CAMERA_THETA,
+            phi=90 * DEGREES + CAMERA_PHI
+        )
+        self.camera.frame.target.move_to(-CAMERA_POSITION)
+        self.play(
+            MoveToTarget(self.camera.frame),
+            *self.swap_caption("We want to take a picture from the camera's perspective."),
+        )
+        self.wait(3)
+        
+        ambient_rotation_function = lambda m, dt: m.increment_theta(-0.05 * dt)
+        self.camera.frame.add_updater(ambient_rotation_function)
+        self.camera.frame.generate_target()
+        self.camera.frame.target.set_euler_angles(
+            phi=55 * DEGREES
+        )
+        self.camera.frame.target.move_to(ORIGIN)
+        matrix_group[2].to_corner(RIGHT + UP)
+        matrix_group[5].next_to(matrix_group[2], DOWN)
+        self.pin_to_front(matrix_group[2], self.get_animation_number())
+        self.pin_to_front(matrix_group[5], self.get_animation_number())
+        self.play(
+            MoveToTarget(self.camera.frame),
+            *self.swap_caption(
+                "The first matrix we're going to use is meant to realign to scene, such that the camera is located at the origin.",
+                t2c={"camera": "#FFFF00", "origin": "#FFFF00"}
+            ),
+            FadeIn(matrix_group[2], LEFT),
+            FadeIn(matrix_group[5], LEFT),
+        )
+        self.wait(1.5)
+
+        self.camera.frame.generate_target()
+        self.camera.frame.target.move_to(UP * 3)
+        to_rotate_group = Group() + object_group + camera_group + unit_cube_group
+        to_rotate_group.generate_target()
+        to_rotate_group.target.shift(-CAMERA_POSITION).rotate_about_origin(-CAMERA_THETA, OUT).rotate_about_origin(-CAMERA_PHI, RIGHT)
+        self.play(
+            MoveToTarget(self.camera.frame),
+            MoveToTarget(to_rotate_group),
+            run_time = 2.5
+        )
+        self.wait(2)
+        
+        self.play(
+            *self.swap_caption(
+                "The camera should also face the negative Z-axis, such that X points right and Y points up, like in a normal graph.",
+                t2c={"negative Z-axis": "#FFFF00"}
+            ),
+        )
+        self.wait(3.5)
+        
+        self.play(
+            *self.swap_caption(
+                "The actual values in the Model View matrix depend on the position and orientation of the camera.",
+            ),
+        )
+        self.wait(3.5)
+        
+        self.unpin_from_front(matrix_group[2])
+        self.unpin_from_front(matrix_group[5])
+        self.play(
+            *self.swap_caption(
+                "Now that all coordinates are relative to the camera, we can move on to projection.",
+                t2c={"projection": "#FFFF00"}
+            ),
+            FadeOut(matrix_group[2], RIGHT),
+            FadeOut(matrix_group[5], RIGHT),
+        )
+        self.wait(3.5)
+
+        matrix_group[1].to_corner(RIGHT + UP)
+        matrix_group[4].next_to(matrix_group[1], DOWN)
+        self.pin_to_front(matrix_group[1], self.get_animation_number())
+        self.pin_to_front(matrix_group[4], self.get_animation_number())
+        self.play(
+            *self.swap_caption(
+                "The second matrix we'll be using is a little complicated, so let's analyze the variables first.",
+            ),
+            FadeIn(matrix_group[1], LEFT),
+            FadeIn(matrix_group[4], LEFT),
+        )
+        self.wait(4)
+
+        self.play(
+            *self.swap_caption(
+                "There are four variables: f, aspect, near and far.",
+                t2c={"[26:27]": "#FFFF3F", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
+            ),
+        )
+        self.wait(3.5)
+
+        self.play(
+            *self.swap_caption(
+                "f is the focal distance, which indicates how much the camera zooms in.",
+                t2c={"[0:1]": "#FFFF3F"}
+            ),
+        )
+        self.wait(3.5)
+
+        to_stretch_group = Group() + camera_group[1:] + unit_cube_group
+        to_stretch_group.generate_target()
+        to_stretch_group.target.stretch(0.5, 0, about_point=ORIGIN).stretch(0.5, 2, about_point=ORIGIN)
+        self.play(
+            MoveToTarget(to_stretch_group),
+            *self.swap_caption(
+                "If f gets larger, the camera's vision gets smaller, and it will seem as if the camera has zoomed in.",
+                t2c={"[3:4]": "#FFFF3F"}
+            ),
+        )
+        self.wait(3.5)
+
+        to_stretch_group.generate_target()
+        to_stretch_group.target.stretch(2, 0, about_point=ORIGIN).stretch(2, 2, about_point=ORIGIN)
+        self.play(
+            MoveToTarget(to_stretch_group),
+            *self.swap_caption(
+                "aspect defines the aspect ratio of the image. This is needed when making non-square images.",
+                t2c={"[0:6]": "#7FFF7F"}
+            ),
+        )
+        self.wait(4)
+        
+        to_squish_group = Group() + camera_group[1:] + unit_cube_group + object_group
+        self.play(
+            *self.swap_caption(
+                "This is because after projection, the scene is put inside a cube, so it should be horizontally \"squished\" to fit.",
+                t2c={"cube": "#FFFF00"}
+            ),
+        )
+        self.wait(1)
+        self.play(
+            to_squish_group.animate.stretch(1 / ASPECT, 0, about_point = ORIGIN),
+            run_time = 0.8
+        )
+        self.wait(1)
+        self.play(
+            to_squish_group.animate.stretch(ASPECT, 0, about_point = ORIGIN),
+            run_time = 0.8
+        )
+        self.wait(2)
+
+        self.play(
+            *self.swap_caption(
+                "Lastly, near and far are positive values which determine the distances of the near-plane and the far-plane from the camera.",
+                t2c={"near": "#FFBF7F", "far": "#FF7FBF"}
+            ),
+        )
+        self.wait(1)
+
+        near_group = unit_cube_group[4:8]
+        near_group.generate_target()
+        far_group = unit_cube_group[8:]
+        far_group.generate_target()
+
+        near_group.target.scale(3, about_point=ORIGIN)
+        far_group.target.scale(1.2, about_point=ORIGIN)
+        self.play(
+            MoveToTarget(near_group),
+            MoveToTarget(far_group),
+            run_time=0.5
+        )
+        self.wait(0.8)
+        near_group.target.scale(0.5, about_point=ORIGIN)
+        far_group.target.scale(0.4, about_point=ORIGIN)
+        self.play(
+            MoveToTarget(near_group),
+            MoveToTarget(far_group),
+            run_time=0.5
+        )
+        self.wait(0.8)
+        near_group.target.scale(1 / (3 * 0.5), about_point=ORIGIN)
+        far_group.target.scale(1 / (1.2 * 0.4), about_point=ORIGIN)
+        self.play(
+            MoveToTarget(near_group),
+            MoveToTarget(far_group),
+            run_time=0.5
+        )
+        self.wait(2)
+        
+        self.play(
+            *self.swap_caption(
+                "Everything between the near- and far-plane will be rendered, but everything in front of the near-plane or behind the far-plane will not.",
+                t2c={"near": "#FFBF7F", "far": "#FF7FBF"}
+            ),
+        )
+        self.wait(5)
+
+        projection_matrix = np.array([
+            [F / ASPECT, 0, 0, 0],
+            [0, F, 0, 0],
+            [0, 0, (NEAR + FAR) / (NEAR - FAR), (2 * NEAR * FAR) / (NEAR - FAR)],
+            [0, 0, -1, 0]
+        ])
+        projection_matrix_inverse = np.linalg.inv(projection_matrix)
+        def apply_projection(matrix, point):
+            vector = np.array([point[0], point[2], -point[1], 1])
+            vector = (matrix @ vector.transpose()).flatten()
+            return [vector[0] / vector[3], -vector[2] / vector[3], vector[1] / vector[3]]
+        
+        frustrum = VCube(fill_color="#FFFF7F", fill_opacity=0.25, stroke_width=0).apply_points_function(
+            lambda points: np.array([apply_projection(projection_matrix_inverse, point) for point in points]),
+            about_point=ORIGIN
+        )
+
+        self.play(
+            *self.swap_caption(
+                "This means that only objects within this space are rendered to the image.",
+            ),
+            FadeIn(frustrum)
+        )
+        self.wait(3)
+
+        self.play(
+            *self.swap_caption(
+                "This space is called a \"frustrum\", and its shape is influenced by f, aspect, near and far, as seen before.",
+                t2c={"[66:67]": "#FFFF3F", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
+            ),
+        )
+        self.wait(4)
+        
+        self.play(
+            *self.swap_caption(
+                "The idea of projection is to transform the frustrum to a cube from (-1, -1, -1) to (1, 1, 1).",
+                t2c={"projection": "#FFFF00", "(-1, -1, -1)": "#FFFF00", "(1, 1, 1)": "#FFFF00"}
+            ),
+        )
+        self.wait(4)
+
+        self.play(
+            FadeOut(frustrum),
+            *self.swap_caption(
+                "This is done using the Projection matrix, which turns the scene into this:",
+            ),
+        )
+        self.wait(1)
+
+        self.camera.frame.generate_target()
+        self.camera.frame.target.move_to(ORIGIN)
+        to_project_group = Group() + object_group + unit_cube_group
+        self.play(
+            to_project_group.animate.apply_points_function(
+                lambda points: np.array([apply_projection(projection_matrix, point) for point in points]),
+                about_point=ORIGIN
+            ),
+            MoveToTarget(self.camera.frame),
+            FadeOut(camera_group),
+            run_time = 2.5
+        )
+        self.wait(3)
+
+        self.camera.frame.remove_updater(ambient_rotation_function)
+        self.camera.frame.generate_target()
+        self.camera.frame.target.set_euler_angles(
+            theta = 20 * DEGREES,
+            phi = 70 * DEGREES
+        )
+        self.play(
+            MoveToTarget(self.camera.frame),
+            *self.swap_caption(
+                "Side note: from here on out, we'll have the Z-axis pointing the opposite way, such that X points right, Y points up, and Z points away from the camera.",
+            ),
+        )
+        self.wait(1)
+
+        to_invert_group = Group() + axes_group[:1] + axes_group[5:] + object_group + unit_cube_group
+        self.play(
+            to_invert_group.animate.stretch(-1, 1, about_point=ORIGIN)
+        )
+        self.wait(3)
+
+        self.camera.frame.remove_updater(ambient_rotation_function)
+
+        self.unpin_from_front(matrix_group[1])
+        self.unpin_from_front(matrix_group[4])
+        to_squish_group = Group() + object_group + unit_cube_group
+        self.camera.frame.generate_target()
+        self.camera.frame.target.set_euler_angles(
+            theta=0,
+            phi=90 * DEGREES
+        )
+        self.camera.frame.target.move_to(UP * 8)
+        self.play(
+            MoveToTarget(self.camera.frame),
+            FadeOut(negative_z_label),
+            FadeOut(positive_z_label),
+            *self.swap_caption(
+                "This projection was the most important step, as we now have a 3D-looking scene in 2D.",
+            ),
+            FadeOut(matrix_group[1], RIGHT),
+            FadeOut(matrix_group[4], RIGHT),
+        )
+        self.wait(4)
+
+        self.play(
+            to_squish_group.animate.stretch(0.01, 1, about_point=ORIGIN),
+            *self.swap_caption(
+                "If the cube is flattened, you can see how this scene still seems to have perspective, despite being flat.",
+            ),
+        )
+        self.wait(4)
+
+        self.camera.frame.generate_target()
+        self.camera.frame.target.move_to(ORIGIN)
+        self.play(
+            MoveToTarget(self.camera.frame),
+            to_squish_group.animate.stretch(100, 1, about_point=ORIGIN),
+            *self.swap_caption(
+                "However, we don't flatten the cube, since we should still use the Z-coordinate later to determine which objects are in front.",
+            ),
+        )
+        self.wait(5)
+        
+        self.play(
+            *self.swap_caption(
+                "We have now managed to create perspective in 2D, which is what we want, but there is still a small problem.",
+            ),
+        )
+        self.wait(4)
+        
+        self.play(
+            *self.swap_caption(
+                "Our cube here is small, and screens don't count pixels from -1 to 1.",
+            ),
+        )
+        self.wait(3)
+        
+        matrix_group[0].to_corner(RIGHT + UP)
+        matrix_group[3].next_to(matrix_group[0], DOWN)
+        self.pin_to_front(matrix_group[0], self.get_animation_number())
+        self.pin_to_front(matrix_group[3], self.get_animation_number())
+        self.play(
+            FadeIn(matrix_group[0], LEFT),
+            FadeIn(matrix_group[3], LEFT),
+            *self.swap_caption(
+                "To solve this, we use the Viewport matrix, which just scales and translates the scene by a certain amount.",
+                pos=DOWN * 3.1
+            ),
+        )
+        self.wait(1)
+
+        scale = 2 / 1080
+        height = 5
+        width = height * ASPECT
+        new_center = np.array([-width / 2, 0, -height / 2])
+        to_scale_group = Group() + object_group + unit_cube_group
+        all_group = Group() + axes_group + to_scale_group
+        self.play(
+            all_group.animate.shift(new_center)
+        )
+        self.play(
+            to_scale_group.animate.shift((1, 0, -1))
+        )
+        self.play(
+            all_group.animate.scale(scale, about_point=new_center)
+        )
+        to_scale_group.generate_target()
+        to_scale_group.target.stretch(0.5 * width / scale, dim=0, about_point=new_center)
+        to_scale_group.target.stretch(50, dim=1, about_point=new_center)
+        to_scale_group.target.stretch(0.5 * height / scale, dim=2, about_point=new_center)
+        self.play(
+            MoveToTarget(to_scale_group)
+        )
+        self.play(
+            to_scale_group.animate.shift(-new_center)
+        )
+        
+        self.play(
+            *self.swap_caption(
+                "Now each position correponds to a pixel between (0, 0) and, e.g., (1919, 1079), which the computer understands.",
+                pos=DOWN * 3.1
+            ),
+        )
+        self.wait(4)
+        
+        self.unpin_from_front(matrix_group[0])
+        self.unpin_from_front(matrix_group[3])
+        self.play(
+            self.camera.frame.animate.set_euler_angles(
+                theta=20 * DEGREES,
+                phi=70 * DEGREES
+            ),
+            *self.swap_caption(
+                "And voilá! A camera projection, made with a 3D scene and just three matrix transformations.",
+                t2c={"voilá": "#FF3FFF"},
+                pos=DOWN * 3.1
+            ),
+            FadeOut(matrix_group[0], RIGHT),
+            FadeOut(matrix_group[3], RIGHT),
+        )
+        self.wait(2.5)
+
 RENDER = True
-ANIMATION = "AlphaBlendScene"
+ANIMATION = "CameraProjectionScene"
 SKIP_TO = 0
 
 if __name__ == "__main__":
     if RENDER:
-        os.system(f"manim-render {DIRECTORY}/main.py {ANIMATION} -w --hd --frame_rate 60")
+        os.system(f"manim-render {DIRECTORY}/main.py {ANIMATION} -w --hd --frame_rate 60 -c {BACKGROUND_COLOR}")
     else:
-        os.system(f"manimgl {DIRECTORY}/main.py {ANIMATION} -l -n {SKIP_TO}")
+        os.system(f"manimgl {DIRECTORY}/main.py {ANIMATION} -l -n {SKIP_TO} -c {BACKGROUND_COLOR}")
