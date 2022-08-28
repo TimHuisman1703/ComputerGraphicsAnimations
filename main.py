@@ -1,10 +1,8 @@
 from manimlib import *
 from math import pi, sqrt, sin, cos
 import numpy as np
-import os
 
 DIRECTORY = os.path.realpath(os.path.dirname(__file__))
-
 BACKGROUND_COLOR = "#36393F"
 
 class CGScene(Scene):
@@ -43,7 +41,7 @@ class CGScene(Scene):
 
     def get_animation_number(self):
         return self.num_plays
-    
+
     def pin_to_front(self, obj, starting_from=0):
         if type(obj) in [Group, VGroup]:
             for sub_mob in obj:
@@ -51,12 +49,12 @@ class CGScene(Scene):
 
         obj.pin_lambda = lambda m, dt: exec(["pass", "self.bring_to_front(m)"][self.get_animation_number() > starting_from])
         obj.add_updater(obj.pin_lambda)
-    
+
     def unpin_from_front(self, obj):
         if type(obj) in [Group, VGroup]:
             for sub_mob in obj:
                 self.unpin_from_front(sub_mob)
-        
+
         try:
             if obj.pin_lambda:
                 obj.remove_updater(obj.pin_lambda)
@@ -66,9 +64,26 @@ class CGScene(Scene):
     def swap_caption(self, text, **kwargs):
         t2c = kwargs.get("t2c", {})
         scale = kwargs.get("scale", 0.8)
-        color = kwargs.get("color", "#FFFFFF")
         pos = kwargs.get("pos", DOWN * 2.6)
-        new_caption = Text(text, t2c=t2c, color=color).scale(scale).shift(pos).fix_in_frame()
+
+        texts = text.split()
+        final_text = ""
+        line_length = 0
+        for t in texts:
+            if line_length + 1 + len(t) <= 55:
+                final_text += " " + t
+                line_length += 1 + len(t)
+            else:
+                final_text += "\n" + t
+                line_length = len(t)
+        final_text = final_text[1:]
+
+        new_caption = Text(final_text, t2c=t2c).scale(scale).shift(pos).fix_in_frame()
+        print("\033[1;34m", end="")
+        final_text_lines = final_text.split("\n")
+        for i in range(len(final_text_lines)):
+            print(["  ", "\n- "][i == 0] + final_text_lines[i])
+        print("\033[0m", end="")
 
         self.pin_to_front(new_caption, self.get_animation_number())
         if self.caption:
@@ -102,6 +117,8 @@ class CGScene(Scene):
         self.animate()
 
         self.wait(3)
+        print()
+        self.wait(0)
 
     def animate(self):
         pass
@@ -165,13 +182,13 @@ class ReflectionRayScene(CGScene):
             Tex("+"),
             Tex("2 \cdot \cos(\\angle(\hat{L}, \hat{N})) \cdot \hat{N}", color="#FF3F00"),
         ]
+        formula_group = Group(*formula_texts)
         new_formula_text = Tex("2 \cdot \mathrm{dot}(\hat{L}, \hat{N}) \cdot \hat{N}", color="#FF3F00")
         question_mark_text = Tex("?", color="#7F7F7F")
 
         formula_texts[0].move_to(LEFT * 5.5 + DOWN * 2)
         for i in range(1, len(formula_texts)):
             formula_texts[i].next_to(formula_texts[i - 1], RIGHT)
-        formula_group = Group(*formula_texts)
         new_formula_text.next_to(formula_texts[-2], RIGHT).shift((0, 0.5, 0))
         question_mark_text.next_to(formula_texts[1], RIGHT)
 
@@ -217,7 +234,7 @@ class ReflectionRayScene(CGScene):
         self.wait(1)
 
         self.play(
-            TransformMatchingTex(reflection_text.copy(), formula_texts[0]),
+            ReplacementTransform(reflection_text.copy(), formula_texts[0]),
             FadeIn(formula_texts[1]),
             FadeIn(question_mark_text),
         )
@@ -226,7 +243,7 @@ class ReflectionRayScene(CGScene):
 
         self.play(
             negative_light_arrow.animate.put_start_and_end_on((0, 0, 0), RIGHT * sqrt(12) + DOWN * 2),
-            TransformMatchingTex(light_text.copy(), negative_light_text),
+            ReplacementTransform(light_text.copy(), negative_light_text),
         )
 
         self.wait(1)
@@ -241,7 +258,7 @@ class ReflectionRayScene(CGScene):
 
         self.play(
             small_normal_arrow_a.animate.put_start_and_end_on(LEFT - LEFT, (0, light_arrow.get_end()[1], 0)),
-            TransformMatchingTex(normal_text.copy(), small_normal_text_a),
+            ReplacementTransform(normal_text.copy(), small_normal_text_a),
         )
         self.add(small_normal_arrow_a.copy())
 
@@ -266,18 +283,16 @@ class ReflectionRayScene(CGScene):
 
         self.play(
             FadeOut(question_mark_text, DOWN),
-            TransformMatchingTex(negative_light_text.copy(), formula_texts[2]),
+            ReplacementTransform(negative_light_text.copy(), formula_texts[2]),
             FadeIn(formula_texts[3]),
-            TransformMatchingTex(small_normal_text_a.copy(), formula_texts[4]),
-            TransformMatchingTex(small_normal_text_b.copy(), formula_texts[4]),
+            ReplacementTransform(small_normal_text_a.copy(), formula_texts[4]),
+            ReplacementTransform(small_normal_text_b.copy(), formula_texts[4]),
         )
-
         self.wait(2)
 
         formula_group.generate_target()
         formula_group.target.scale(0.6)
         formula_group.target.shift((0, 1, 0))
-
         self.play(
             MoveToTarget(formula_group),
         )
@@ -285,7 +300,6 @@ class ReflectionRayScene(CGScene):
             Write(dot_formula_text),
             run_time = 1.2
         )
-
         self.wait(2.5)
 
         formula_group.target.shift((0, -0.5, 0))
@@ -298,7 +312,7 @@ class ReflectionRayScene(CGScene):
             MoveToTarget(dot_formula_text)
         )
         self.play(
-            TransformMatchingTex(formula_texts[-1], new_formula_text),
+            ReplacementTransform(formula_texts[-1], new_formula_text),
         )
 
         self.wait(3)
@@ -552,9 +566,10 @@ class MatrixOrderScene(CGScene):
             FadeIn(matrix_group)
         )
 
-        explanation_text_a = Text("Suppose we have a few operations strung together by multiplying their matrices.").scale(0.8).move_to(DOWN * 1.5)
         self.play(
-            FadeIn(explanation_text_a, UP)
+            *self.swap_caption(
+                "Suppose we have a few operations strung together by multiplying their matrices."
+            )
         )
         self.wait(4)
 
@@ -568,29 +583,25 @@ class MatrixOrderScene(CGScene):
         object_group = self.generate_crosshairs().scale(scale, about_point=ORIGIN).shift(center)
         right_to_left_arrow = Arrow((6.7, 0.3, 0), (-1.7, 0.3, 0)).set_color("#00BFFF")
         left_to_right_arrow = Arrow((-1.7, 0, 0), (6.7, 0, 0)).set_color("#FF7F00")
-        explanation_text_b = Text(
-            "When applying these operations one at a time, should we read them right-to-left or left-to-right?",
-            t2c={"right-to-left": "#00BFFF", "left-to-right": "#FF7F00"}
-        ).scale(0.8).move_to(DOWN * 2.6)
         self.play(
-            FadeOut(explanation_text_a),
+            *self.swap_caption(
+                "When applying these operations one at a time, should we read them right-to-left or left-to-right?",
+                t2c={"right-to-left": "#00BFFF", "left-to-right": "#FF7F00"}
+            ),
             ShowCreation(right_to_left_arrow),
             ShowCreation(left_to_right_arrow),
             FadeIn(grid_group),
             FadeIn(object_group),
-            FadeIn(explanation_text_b, UP),
             MoveToTarget(matrix_group)
         )
         self.wait(4)
 
-        explanation_text_c = Text(
-            "The usual way is right-to-left, as long as each operation is done from the perspective of the origin.",
-            t2c={"right-to-left": "#00BFFF", "perspective of the origin": "#FFFF00"}
-        ).scale(0.8).move_to(DOWN * 2.6)
         self.play(
-            FadeOut(explanation_text_b),
+            *self.swap_caption(
+                "The usual way is right-to-left, as long as each operation is done from the perspective of the origin.",
+                t2c={"right-to-left": "#00BFFF", "perspective of the origin": "#FFFF00"}
+            ),
             FadeOut(left_to_right_arrow),
-            FadeIn(explanation_text_c, UP)
         )
 
         # RTL: Scale
@@ -671,14 +682,12 @@ class MatrixOrderScene(CGScene):
         )
         self.wait(0.5)
 
-        explanation_text_d = Text(
-            "Right-to-left also makes sense in the math, since the matrix that is closest to the vector (on the right) is applied first.",
-            t2c={"Right-to-left": "#00BFFF", "vector": "#FF00FF"}
-        ).scale(0.8).move_to(DOWN * 2.6)
         vector_matrix = Matrix([["x"], ["y"], ["1"]]).scale(0.75).next_to(matrices[2], RIGHT).shift(LEFT * 0.6).set_color("#FF00FF")
         self.play(
-            FadeOut(explanation_text_c),
-            FadeIn(explanation_text_d, UP),
+            *self.swap_caption(
+                "Right-to-left also makes sense in the math, since the matrix that is closest to the vector (on the right) is multiplied first.",
+                t2c={"Right-to-left": "#00BFFF", "vector": "#FF00FF"}
+            ),
             matrix_group.animate.shift(LEFT * 0.5),
             FadeIn(vector_matrix, LEFT),
             run_time = 1
@@ -686,13 +695,11 @@ class MatrixOrderScene(CGScene):
         self.wait(4)
 
         new_object_group = self.generate_crosshairs().scale(scale, about_point=ORIGIN).shift(center)
-        explanation_text_e = Text(
-            "However, there is also a different method of applying operations, for which left-to-right reading can be used.",
-            t2c={"left-to-right": "#FF7F00"}
-        ).scale(0.8).move_to(DOWN * 2.6)
         self.play(
-            FadeOut(explanation_text_d),
-            FadeIn(explanation_text_e, UP),
+            *self.swap_caption(
+                "However, there is also a different method of applying operations, for which left-to-right reading can be used.",
+                t2c={"left-to-right": "#FF7F00"}
+            ),
             matrix_group.animate.shift(RIGHT * 0.5),
             FadeOut(vector_matrix, RIGHT),
             FadeOut(object_group),
@@ -703,13 +710,11 @@ class MatrixOrderScene(CGScene):
         self.wait(4)
 
         object_group = new_object_group
-        explanation_text_f = Text(
-            "This new method requires us to move an object from its own perspective, instead of the origin's perspective.",
-            t2c={"its own perspective": "#FFFF00"}
-        ).scale(0.8).move_to(DOWN * 2.6)
         self.play(
-            FadeOut(explanation_text_e),
-            FadeIn(explanation_text_f, UP),
+            *self.swap_caption(
+                "This new method requires us to move an object from its own perspective, instead of the origin's perspective.",
+                t2c={"its own perspective": "#FFFF00"}
+            ),
         )
 
         # LTR: Rotate
@@ -783,50 +788,43 @@ class MatrixOrderScene(CGScene):
         )
         self.wait(0.5)
 
-        explanation_text_g = Text(
-            "Relative to the grid, the object is in the exact same spot as before. Rewind the video to check it out."
-        ).scale(0.8).move_to(DOWN * 2.6)
         self.play(
-            FadeOut(explanation_text_f),
-            FadeIn(explanation_text_g, UP),
+            *self.swap_caption(
+                "Relative to the grid, the object is in the exact same spot as before. Rewind the video to check it out."
+            ),
         )
         self.wait(4)
 
-        explanation_text_h = Text(
-            "With this kind of movement, every move is relative to\nthe object being transformed.\nDirections depend on its current angle and size, and the center of rotation/scaling is the object itself.",
-            t2c={"relative to\nthe object": "#FFFF00"}
-        ).scale(0.8).move_to(DOWN * 2.6)
         self.play(
-            FadeOut(explanation_text_g),
-            FadeIn(explanation_text_h, UP),
+            *self.swap_caption(
+                "With this kind of movement, every move is relative to the object being transformed. Directions depend on its current angle and size, and the center of rotation/scaling is the object itself.",
+                t2c={"relative to\nthe object": "#FFFF00"}
+            ),
         )
         self.wait(6)
 
         old_objects = self.all_objects()
-        right_to_left_arrow = Arrow().put_start_and_end_on(np.array([5, 2, 0]), np.array([-5, 2, 0])).set_color("#00BFFF")
-        right_to_left_text = Text("From perspective of origin", color="#00BFFF").scale(0.75).move_to((0, 2.4, 0))
-        left_to_right_arrow = Arrow().put_start_and_end_on(np.array([-5, 0.8, 0]), np.array([5, 0.8, 0])).set_color("#FF7F00")
-        left_to_right_text = Text("From perspective of object", color="#FF7F00").scale(0.75).move_to((0, 1.2, 0))
-        explanation_text_i = Text(
-            "Depending on the situation, either of these reading orders might feel more intuitive to you. You can always use either interpretation.",
-        ).scale(0.8).move_to(DOWN * 1.5)
+        right_to_left_arrow = Arrow().put_start_and_end_on(np.array([5, 1.4, 0]), np.array([-5, 1.4, 0])).set_color("#00BFFF")
+        right_to_left_text = Text("From perspective of origin", color="#00BFFF").scale(0.75).move_to((0, 1.8, 0))
+        left_to_right_arrow = Arrow().put_start_and_end_on(np.array([-5, 0.2, 0]), np.array([5, 0.2, 0])).set_color("#FF7F00")
+        left_to_right_text = Text("From perspective of object", color="#FF7F00").scale(0.75).move_to((0, 0.6, 0))
         self.play(
             FadeOut(old_objects),
             ShowCreation(right_to_left_arrow),
             ShowCreation(left_to_right_arrow),
             FadeIn(right_to_left_text),
             FadeIn(left_to_right_text),
-            FadeIn(explanation_text_i, UP),
+            *self.swap_caption(
+                "Depending on the situation, either of these reading orders might feel more intuitive to you. You can always use either interpretation.",
+            )
         )
         self.wait(6)
 
-        explanation_text_j = Text(
-            "It is just important to know the difference between the two, to avoid making mistakes or brute-forcing your transformations.",
-            t2c={"know the difference": "#FFFF00"}
-        ).scale(0.8).move_to(DOWN * 1.5)
         self.play(
-            FadeOut(explanation_text_i),
-            FadeIn(explanation_text_j, UP),
+            *self.swap_caption(
+                "It is just important to know the difference between the two, to avoid making mistakes or brute-forcing your transformations.",
+                t2c={"know the difference": "#FFFF00"}
+            ),
         )
         self.wait(2)
 
@@ -853,7 +851,7 @@ class AlphaBlendScene(CGScene):
         self.wait(1)
 
         self.play(
-            *self.swap_caption("Transparency of colors is handled by assigning an \"alpha\" value to it, which indicates the opacity of the color.")
+            *self.swap_caption("Transparency of a color is handled by assigning an \"alpha\" value to it, which indicates the opacity of the color.")
         )
         self.wait(3.5)
 
@@ -1023,7 +1021,7 @@ class AlphaBlendScene(CGScene):
 
             if iteration == 0:
                 self.play(
-                    *self.swap_caption("With an alpha of 0.8, the resulting color is 80% the new color and 20% the old color.", pos=DOWN * 3)
+                    *self.swap_caption("With an alpha of 0.8, the resulting color is 80% the new\ncolor and 20% the old color.", pos=DOWN * 3)
                 )
                 self.wait(4)
 
@@ -1085,7 +1083,24 @@ class AlphaBlendScene(CGScene):
             *[MoveToTarget(j) for j in self.green_contributes_group],
             FadeIn(brace_group)
         )
-        self.wait(2)
+        self.wait(5)
+
+        for j in self.green_contributes_group:
+            j.generate_target()
+            j.target.scale(1 / 1.2)
+            j.target.set_color("#FFFFFF")
+
+        self.play(
+            *self.swap_caption("Note that the order of the colors matters for the end result.", pos=DOWN * 3),
+            *[MoveToTarget(j) for j in self.green_contributes_group],
+            FadeOut(brace_group)
+        )
+        self.wait(3)
+
+        self.play(
+            *self.swap_caption("For example, even though red had a higher alpha than blue (0.8 > 0.5), it has less influence because it is further in the back.", pos=DOWN * 3, t2c={"red": "#FF0000", "blue": "#007FFF", "0.8": "#FF0000", "0.5": "#007FFF"})
+        )
+        self.wait(3)
 
 class CameraProjectionScene(CGScene):
     def get_title(self):
@@ -1190,7 +1205,7 @@ class CameraProjectionScene(CGScene):
 
         self.play(
             FadeOut(matrix_group),
-            *self.swap_caption("Let's look at these operations one by one.\nSuppose we have a scene, and a camera observing it."),
+            *self.swap_caption("Let's look at these operations one by one. Suppose we have a scene, and a camera observing it."),
         )
 
         self.camera.frame.set_euler_angles(
@@ -1221,7 +1236,7 @@ class CameraProjectionScene(CGScene):
             *self.swap_caption("We want to take a picture from the camera's perspective."),
         )
         self.wait(3)
-        
+
         ambient_rotation_function = lambda m, dt: m.increment_theta(-0.05 * dt)
         self.camera.frame.add_updater(ambient_rotation_function)
         self.camera.frame.generate_target()
@@ -1236,7 +1251,7 @@ class CameraProjectionScene(CGScene):
         self.play(
             MoveToTarget(self.camera.frame),
             *self.swap_caption(
-                "The first matrix we're going to use is meant to realign to scene, such that the camera is located at the origin.",
+                "The first matrix we're going to use is meant to realign the scene, such that the camera is located at the origin.",
                 t2c={"camera": "#FFFF00", "origin": "#FFFF00"}
             ),
             FadeIn(matrix_group[2], LEFT),
@@ -1255,7 +1270,7 @@ class CameraProjectionScene(CGScene):
             run_time = 2.5
         )
         self.wait(2)
-        
+
         self.play(
             *self.swap_caption(
                 "The camera should also face the negative Z-axis, such that X points right and Y points up, like in a normal graph.",
@@ -1263,14 +1278,14 @@ class CameraProjectionScene(CGScene):
             ),
         )
         self.wait(3.5)
-        
+
         self.play(
             *self.swap_caption(
                 "The actual values in the Model View matrix depend on the position and orientation of the camera.",
             ),
         )
         self.wait(3.5)
-        
+
         self.unpin_from_front(matrix_group[2])
         self.unpin_from_front(matrix_group[5])
         self.play(
@@ -1298,16 +1313,16 @@ class CameraProjectionScene(CGScene):
 
         self.play(
             *self.swap_caption(
-                "There are four variables: f, aspect, near and far.",
-                t2c={"[26:27]": "#FFFF3F", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
+                "There are four variables: ​f, aspect, near and far.",
+                t2c={"​f": "#FFFF3F", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
             ),
         )
         self.wait(3.5)
 
         self.play(
             *self.swap_caption(
-                "f is the focal distance, which indicates how much the camera zooms in.",
-                t2c={"[0:1]": "#FFFF3F"}
+                "​f is the focal distance, which indicates how much the camera zooms in.",
+                t2c={"​f": "#FFFF3F"}
             ),
         )
         self.wait(3.5)
@@ -1318,8 +1333,8 @@ class CameraProjectionScene(CGScene):
         self.play(
             MoveToTarget(to_stretch_group),
             *self.swap_caption(
-                "If f gets larger, the camera's vision gets smaller, and it will seem as if the camera has zoomed in.",
-                t2c={"[3:4]": "#FFFF3F"}
+                "If ​f gets larger, the camera's vision gets smaller, and it will seem as if the camera has zoomed in.",
+                t2c={"​f": "#FFFF3F"}
             ),
         )
         self.wait(3.5)
@@ -1329,12 +1344,12 @@ class CameraProjectionScene(CGScene):
         self.play(
             MoveToTarget(to_stretch_group),
             *self.swap_caption(
-                "aspect defines the aspect ratio of the image. This is needed when making non-square images.",
-                t2c={"[0:6]": "#7FFF7F"}
+                "​aspect defines the aspect ratio of the image. This is needed when making non-square images.",
+                t2c={"​aspect": "#7FFF7F"}
             ),
         )
         self.wait(4)
-        
+
         to_squish_group = Group() + camera_group[1:] + unit_cube_group + object_group
         self.play(
             *self.swap_caption(
@@ -1391,7 +1406,7 @@ class CameraProjectionScene(CGScene):
             run_time=0.5
         )
         self.wait(2)
-        
+
         self.play(
             *self.swap_caption(
                 "Everything between the near- and far-plane will be rendered, but everything in front of the near-plane or behind the far-plane will not.",
@@ -1411,8 +1426,8 @@ class CameraProjectionScene(CGScene):
             vector = np.array([point[0], point[2], -point[1], 1])
             vector = (matrix @ vector.transpose()).flatten()
             return [vector[0] / vector[3], -vector[2] / vector[3], vector[1] / vector[3]]
-        
-        frustrum = VCube(fill_color="#FFFF7F", fill_opacity=0.25, stroke_width=0).apply_points_function(
+
+        frustrum = Cube(color="#FFFF7F", opacity=0.25, stroke_width=0).apply_points_function(
             lambda points: np.array([apply_projection(projection_matrix_inverse, point) for point in points]),
             about_point=ORIGIN
         )
@@ -1427,12 +1442,12 @@ class CameraProjectionScene(CGScene):
 
         self.play(
             *self.swap_caption(
-                "This space is called a \"frustrum\", and its shape is influenced by f, aspect, near and far, as seen before.",
-                t2c={"[66:67]": "#FFFF3F", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
+                "This space is called a \"frustrum\", and its shape is influenced by ​f, aspect, near and far, as seen before.",
+                t2c={"​f": "#FFFF3F", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
             ),
         )
         self.wait(4)
-        
+
         self.play(
             *self.swap_caption(
                 "The idea of projection is to transform the frustrum to a cube from (-1, -1, -1) to (1, 1, 1).",
@@ -1524,21 +1539,21 @@ class CameraProjectionScene(CGScene):
             ),
         )
         self.wait(5)
-        
+
         self.play(
             *self.swap_caption(
                 "We have now managed to create perspective in 2D, which is what we want, but there is still a small problem.",
             ),
         )
         self.wait(4)
-        
+
         self.play(
             *self.swap_caption(
                 "Our cube here is small, and screens don't count pixels from -1 to 1.",
             ),
         )
         self.wait(3)
-        
+
         matrix_group[0].to_corner(RIGHT + UP)
         matrix_group[3].next_to(matrix_group[0], DOWN)
         self.pin_to_front(matrix_group[0], self.get_animation_number())
@@ -1563,7 +1578,7 @@ class CameraProjectionScene(CGScene):
             all_group.animate.shift(new_center)
         )
         self.play(
-            to_scale_group.animate.shift((1, 0, -1))
+            to_scale_group.animate.shift((1, 0, 1))
         )
         self.play(
             all_group.animate.scale(scale, about_point=new_center)
@@ -1575,10 +1590,7 @@ class CameraProjectionScene(CGScene):
         self.play(
             MoveToTarget(to_scale_group)
         )
-        self.play(
-            to_scale_group.animate.shift(-new_center)
-        )
-        
+
         self.play(
             *self.swap_caption(
                 "Now each position correponds to a pixel between (0, 0) and, e.g., (1919, 1079), which the computer understands.",
@@ -1586,7 +1598,7 @@ class CameraProjectionScene(CGScene):
             ),
         )
         self.wait(4)
-        
+
         self.unpin_from_front(matrix_group[0])
         self.unpin_from_front(matrix_group[3])
         self.play(
@@ -1605,11 +1617,16 @@ class CameraProjectionScene(CGScene):
         self.wait(2.5)
 
 RENDER = True
-ANIMATION = "CameraProjectionScene"
+ANIMATION = "-a"
 SKIP_TO = 0
 
 if __name__ == "__main__":
+    command = "echo lmao"
+
     if RENDER:
-        os.system(f"manim-render {DIRECTORY}/main.py {ANIMATION} -w --hd --frame_rate 60 -c {BACKGROUND_COLOR}")
+        command = f"manim-render {os.path.realpath(__file__)} {ANIMATION} -w --hd --frame_rate 60 -c {BACKGROUND_COLOR}"
     else:
-        os.system(f"manimgl {DIRECTORY}/main.py {ANIMATION} -l -n {SKIP_TO} -c {BACKGROUND_COLOR}")
+        command = f"manimgl {os.path.realpath(__file__)} {ANIMATION} -l -n {SKIP_TO} -c {BACKGROUND_COLOR}"
+
+    print(f"\033[0;32m{command}\033[0m")
+    os.system(command)
