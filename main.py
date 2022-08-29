@@ -15,18 +15,21 @@ class CGScene(Scene):
     def generate_grid(self, grid_range):
         grid_group = Group()
 
+        # Place horizontal grid lines
         for iy in range(grid_range[1][0] + 1, grid_range[1][1]):
             if iy == 0:
                 continue
             new_line = Line(np.array([grid_range[0][0], iy, 0]), np.array([grid_range[0][1], iy, 0]), color="#5F5F5F")
             grid_group.add(new_line)
 
+        # Place vertical grid lines
         for ix in range(grid_range[0][0] + 1, grid_range[0][1]):
             if ix == 0:
                 continue
             new_line = Line((ix, grid_range[1][0], 0), (ix, grid_range[1][1], 0), color="#5F5F5F")
             grid_group.add(new_line)
 
+        # Place axes
         x_axis = Line(np.array([grid_range[0][0], 0, 0]), np.array([grid_range[0][1], 0, 0]), color="#9F9F9F")
         y_axis = Line(np.array([0, grid_range[1][0], 0]), np.array([0, grid_range[1][1], 0]), color="#9F9F9F")
         grid_group.add(x_axis, y_axis)
@@ -34,38 +37,48 @@ class CGScene(Scene):
         return grid_group
 
     def generate_crosshairs(self):
+        # Place arrows
         u_arrow = Arrow().put_start_and_end_on(ORIGIN, RIGHT).set_color("#FF0000")
         v_arrow = Arrow().put_start_and_end_on(ORIGIN, UP).set_color("#00FF00")
+
+        # Place unit square
         unit_square = Square(side_length=1.0).move_to((0.5, 0.5, 0)).set_color("#FFFF00").set_opacity(0.5).set_fill("#FFFF00", opacity=0.25)
+
         return Group(unit_square, v_arrow, u_arrow)
 
     def get_animation_number(self):
         return self.num_plays
 
     def pin_to_front(self, obj, starting_from=0):
+        # Recursively pin
         if type(obj) in [Group, VGroup]:
             for sub_mob in obj:
                 self.pin_to_front(sub_mob)
 
+        # Add bring_to_front updater to simulate pinning
         obj.pin_lambda = lambda m, dt: exec(["pass", "self.bring_to_front(m)"][self.get_animation_number() > starting_from])
         obj.add_updater(obj.pin_lambda)
 
     def unpin_from_front(self, obj):
+        # Recursively unpin
         if type(obj) in [Group, VGroup]:
             for sub_mob in obj:
                 self.unpin_from_front(sub_mob)
 
         try:
+            # Remove updater if possible
             if obj.pin_lambda:
                 obj.remove_updater(obj.pin_lambda)
         except:
             pass
 
     def swap_caption(self, text, **kwargs):
+        # Set default kwargs
         t2c = kwargs.get("t2c", {})
         scale = kwargs.get("scale", 0.8)
         pos = kwargs.get("pos", DOWN * 2.6)
 
+        # Group text in new lines
         texts = text.split()
         final_text = ""
         line_length = 0
@@ -78,20 +91,23 @@ class CGScene(Scene):
                 line_length = len(t)
         final_text = final_text[1:]
 
-        new_caption = Text(final_text, t2c=t2c).scale(scale).shift(pos).fix_in_frame()
+        # Print current text
         print("\033[1;34m", end="")
         final_text_lines = final_text.split("\n")
         for i in range(len(final_text_lines)):
             print(["  ", "\n- "][i == 0] + final_text_lines[i])
         print("\033[0m", end="")
 
+        # Create and pin new caption
+        new_caption = Text(final_text, t2c=t2c).scale(scale).shift(pos).fix_in_frame()
         self.pin_to_front(new_caption, self.get_animation_number())
+        actions = [FadeIn(new_caption, UP)]
+
+        # Unpin and delete old caption
         if self.caption:
             self.unpin_from_front(self.caption)
-
-        actions = [FadeIn(new_caption, UP)]
-        if self.caption:
             actions.extend([FadeOut(self.caption)])
+
         self.caption = new_caption
         return actions
 
@@ -103,6 +119,9 @@ class CGScene(Scene):
         self.title_text.set_width(13)
         self.title_text.fix_in_frame()
         self.add(self.title_text)
+        self.wait(1.5)
+
+        # Move title to corner
         self.title_text.target.set_fill("#FFFFFF", 0.5)
         self.title_text.target.scale(0.6)
         self.title_text.target.to_corner(LEFT + UP)
@@ -114,11 +133,12 @@ class CGScene(Scene):
         # Default values
         self.caption = None
 
+        # Run animation
         self.animate()
 
-        self.wait(3)
+        # Ending pause
         print()
-        self.wait(0)
+        self.wait(3)
 
     def animate(self):
         pass
@@ -128,9 +148,7 @@ class ReflectionRayScene(CGScene):
         return "Reflection Ray Formula"
 
     def animate(self):
-        # Creation
-
-        # Mirror group
+        # Show mirror, N and L
         mirror_group = Group()
         mirror_line = Line(LEFT * 5, RIGHT * 5, color="#FFFFFF")
         mirror_text = Text("Mirror", color="#FFFFFF").move_to(0.3 * UP + 4 * LEFT).scale(0.75)
@@ -141,40 +159,41 @@ class ReflectionRayScene(CGScene):
             diagonal_line = Line(RIGHT * x + LEFT * 0.1 + DOWN * 0.2, RIGHT * x + RIGHT * 0.1)
             mirror_group.add(diagonal_line)
 
-        # Normal group
         normal_group = Group()
         normal_arrow = Arrow().put_start_and_end_on((0, 0, 0), UP * 4).set_color("#FF7F00")
         normal_text = Tex("\hat{N}", color="#FF7F00").move_to(LEFT * 0.3 + UP * 3.5)
         normal_group.add(normal_arrow, normal_text)
 
-        # Light group
         light_group = Group()
         light_arrow = Arrow().put_start_and_end_on((0, 0, 0), LEFT * sqrt(12) + UP * 2).set_color("#FFFF00")
         light_text = Tex("\hat{L}", color="#FFFF00").move_to(LEFT * sqrt(12) + UP * 1.6)
         light_group.add(light_arrow, light_text)
+        light_group.shift((-sqrt(3) * 5, 5, 0))
         sun_image = ImageMobject(f"{DIRECTORY}/assets/sun.png").scale(0.2).move_to(LEFT * sqrt(12) * 1.25 + UP * 2.5)
+        self.play(
+            FadeIn(mirror_group),
+            FadeIn(normal_group),
+            FadeIn(sun_image),
+            run_time=1
+        )
+        self.play(
+            light_group.animate.shift((sqrt(3) * 5, -5, 0)),
+            run_time=1
+        )
 
-        # Reflection group
+        # Show R
         reflection_group = Group()
         reflection_arrow = Arrow().put_start_and_end_on((0, 0, 0), RIGHT * sqrt(12) + UP * 2).set_color("#FF007F")
         reflection_text = Tex("R", color="#FF007F").move_to(RIGHT * (sqrt(12) - 0.5) + UP * 2.1)
         reflection_group.add(reflection_arrow, reflection_text)
+        self.play(
+            ShowCreation(reflection_arrow),
+            FadeIn(reflection_text),
+            run_time=1
+        )
+        self.wait(1)
 
-        # Negative light arrow
-        negative_light_arrow = light_arrow.copy().set_color("#FFFF00")
-        negative_light_text = Tex("-\hat{L}", color="#FFFF00").move_to(RIGHT * 3.5 + DOWN * 2.2)
-        negative_light_text
-
-        # Dotted line
-        dotted_line = DashedLine(light_arrow.get_end(), (0, light_arrow.get_end()[1]), dash_length=0.2)
-        angle = 5 * pi / 6
-        angle_arc = Arc(radius=0.5, start_angle=angle, angle=0.5 * pi - angle)
-
-        # Small normal A
-        small_normal_arrow_a = Arrow().put_start_and_end_on((0, 0, 0), UP * 4).set_color("#FF3F00")
-        small_normal_text_a = Tex("\cos(\\angle(\hat{L}, \hat{N})) \cdot \hat{N}", color="#FF3F00").move_to(RIGHT * 1.3 + UP * 2).scale(0.6)
-
-        # Formula group
+        # Show R = ?
         formula_texts = [
             Tex("R", color="#FF007F"),
             Tex("="),
@@ -185,102 +204,65 @@ class ReflectionRayScene(CGScene):
         formula_group = Group(*formula_texts)
         new_formula_text = Tex("2 \cdot \mathrm{dot}(\hat{L}, \hat{N}) \cdot \hat{N}", color="#FF3F00")
         question_mark_text = Tex("?", color="#7F7F7F")
-
         formula_texts[0].move_to(LEFT * 5.5 + DOWN * 2)
         for i in range(1, len(formula_texts)):
             formula_texts[i].next_to(formula_texts[i - 1], RIGHT)
         new_formula_text.next_to(formula_texts[-2], RIGHT).shift((0, 0.5, 0))
         question_mark_text.next_to(formula_texts[1], RIGHT)
-
-        dot_formula_text = Tex("\cos(\\angle(\hat{L}, \hat{N})) = \\frac{\mathrm{dot}(\hat{L}, \hat{N})}{|\hat{L}| \cdot |\hat{N}|} = \\frac{\mathrm{dot}(\hat{L}, \hat{N})}{1 \cdot 1} = \mathrm{dot}(\hat{L}, \hat{N})")
-        dot_formula_text.scale(0.8).shift(LEFT * 2.4 + DOWN * 2.2)
-
-        explanation_text_a = Text("This formula works if L is defined as pointing\nfrom surface to light source.").scale(0.8).move_to(RIGHT + UP * 1.8)
-        explanation_text_b = Text("If L is defined as pointing from light source\nto surface, the formula is negated:").scale(0.8).move_to(RIGHT + DOWN * 0.8)
-
-        negative_formula_texts = [
-            Tex("R", color="#FF007F"),
-            Tex("="),
-            Tex("\hat{L}", color="#FFFF00"),
-            Tex("+"),
-            Tex("-2 \cdot \mathrm{dot}(\hat{L}, \hat{N}) \cdot \hat{N}", color="#FF3F00"),
-        ]
-        for i in range(1, len(negative_formula_texts)):
-            negative_formula_texts[i].next_to(negative_formula_texts[i - 1], RIGHT)
-        negative_formula_group = Group(*negative_formula_texts)
-        negative_formula_group.scale(0.8).move_to(RIGHT + DOWN * 1.8)
-
-        # Animation
-
-        self.play(
-            FadeIn(mirror_group),
-            FadeIn(normal_group),
-            FadeIn(sun_image),
-            run_time=1
-        )
-
-        light_group.shift((-sqrt(3) * 5, 5, 0))
-        self.play(
-            light_group.animate.shift((sqrt(3) * 5, -5, 0)),
-            run_time=1
-        )
-
-        self.play(
-            ShowCreation(reflection_arrow),
-            FadeIn(reflection_text),
-            run_time=1
-        )
-
-        self.wait(1)
-
         self.play(
             ReplacementTransform(reflection_text.copy(), formula_texts[0]),
             FadeIn(formula_texts[1]),
             FadeIn(question_mark_text),
         )
-
         self.wait(1)
 
+        # Show -L
+        negative_light_arrow = light_arrow.copy().set_color("#FFFF00")
+        negative_light_text = Tex("-\hat{L}", color="#FFFF00").move_to(RIGHT * 3.5 + DOWN * 2.2)
+        negative_light_text
         self.play(
             negative_light_arrow.animate.put_start_and_end_on((0, 0, 0), RIGHT * sqrt(12) + DOWN * 2),
             ReplacementTransform(light_text.copy(), negative_light_text),
         )
-
         self.wait(1)
 
+        # Show dotted line and arc
+        dotted_line = DashedLine(light_arrow.get_end(), (0, light_arrow.get_end()[1]), dash_length=0.2)
+        angle = 5 * pi / 6
+        angle_arc = Arc(radius=0.5, start_angle=angle, angle=0.5 * pi - angle)
         self.play(
             ShowCreation(dotted_line),
             ShowCreation(angle_arc),
             run_time=0.6
         )
-
         self.wait(1)
 
+        # Show first small normal
+        small_normal_arrow_a = Arrow().put_start_and_end_on((0, 0, 0), UP * 4).set_color("#FF3F00")
+        small_normal_text_a = Tex("\cos(\\angle(\hat{L}, \hat{N})) \cdot \hat{N}", color="#FF3F00").move_to(RIGHT * 1.3 + UP * 2).scale(0.6)
         self.play(
             small_normal_arrow_a.animate.put_start_and_end_on(LEFT - LEFT, (0, light_arrow.get_end()[1], 0)),
             ReplacementTransform(normal_text.copy(), small_normal_text_a),
         )
-        self.add(small_normal_arrow_a.copy())
-
         self.wait(1)
 
+        # Move small normals
+        self.add(small_normal_arrow_a.copy())
         self.play(
             small_normal_arrow_a.animate.shift(negative_light_arrow.get_end()),
             small_normal_text_a.animate.shift(negative_light_arrow.get_end() + DOWN * 0.4),
             run_time = 0.6
         )
-
         small_normal_arrow_b = small_normal_arrow_a.copy()
         small_normal_text_b = small_normal_text_a.copy()
-
         self.play(
             small_normal_arrow_b.animate.shift((0, -negative_light_arrow.get_end()[1], 0)),
             small_normal_text_b.animate.shift((0, -negative_light_arrow.get_end()[1], 0)),
             run_time = 0.6
         )
-
         self.wait(1)
 
+        # Fill in formula
         self.play(
             FadeOut(question_mark_text, DOWN),
             ReplacementTransform(negative_light_text.copy(), formula_texts[2]),
@@ -290,18 +272,22 @@ class ReflectionRayScene(CGScene):
         )
         self.wait(2)
 
+        # Show dot formula
         formula_group.generate_target()
         formula_group.target.scale(0.6)
         formula_group.target.shift((0, 1, 0))
         self.play(
             MoveToTarget(formula_group),
         )
+        dot_formula_text = Tex("\cos(\\angle(\hat{L}, \hat{N})) = \\frac{\mathrm{dot}(\hat{L}, \hat{N})}{|\hat{L}| \cdot |\hat{N}|} = \\frac{\mathrm{dot}(\hat{L}, \hat{N})}{1 \cdot 1} = \mathrm{dot}(\hat{L}, \hat{N})")
+        dot_formula_text.scale(0.8).shift(LEFT * 2.4 + DOWN * 2.2)
         self.play(
             Write(dot_formula_text),
             run_time = 1.2
         )
         self.wait(2.5)
 
+        # Swap cosine with dot
         formula_group.target.shift((0, -0.5, 0))
         formula_group.target.scale(1 / 0.6)
         dot_formula_text.generate_target()
@@ -314,15 +300,16 @@ class ReflectionRayScene(CGScene):
         self.play(
             ReplacementTransform(formula_texts[-1], new_formula_text),
         )
-
         self.wait(3)
 
+        # Start explanation
         formula_group.remove(formula_texts[-1])
         formula_group.add(new_formula_text)
         formula_group.generate_target()
         formula_group.target.scale(0.8)
         formula_group.target.move_to(RIGHT + UP * 0.8)
         objects_to_delete = self.all_objects().remove(formula_group, sun_image, light_group, mirror_group)
+        explanation_text_a = Text("This formula works if L is defined as pointing\nfrom surface to light source.").scale(0.8).move_to(RIGHT + UP * 1.8)
         self.play(
             FadeOut(objects_to_delete),
             FadeIn(explanation_text_a),
@@ -334,9 +321,21 @@ class ReflectionRayScene(CGScene):
             run_time = 1.2
         )
         self.add(formula_group)
-
         self.wait(2)
 
+        # Show alternative negative formula
+        negative_formula_texts = [
+            Tex("R", color="#FF007F"),
+            Tex("="),
+            Tex("\hat{L}", color="#FFFF00"),
+            Tex("+"),
+            Tex("-2 \cdot \mathrm{dot}(\hat{L}, \hat{N}) \cdot \hat{N}", color="#FF3F00"),
+        ]
+        for i in range(1, len(negative_formula_texts)):
+            negative_formula_texts[i].next_to(negative_formula_texts[i - 1], RIGHT)
+        negative_formula_group = Group(*negative_formula_texts)
+        negative_formula_group.scale(0.8).move_to(RIGHT + DOWN * 1.8)
+        explanation_text_b = Text("If L is defined as pointing from light source\nto surface, the formula is negated:").scale(0.8).move_to(RIGHT + DOWN * 0.8)
         self.play(
             FadeIn(explanation_text_b),
             FadeIn(negative_formula_group),
@@ -407,21 +406,19 @@ class MatrixTransformationScene(CGScene):
         return self.MATRIX_TRANSFORMATION_SETTINGS["title"]
 
     def animate(self):
-        # Creation
-
         # Calculate center
         scale = self.MATRIX_TRANSFORMATION_SETTINGS["scale"]
         grid_range = self.MATRIX_TRANSFORMATION_SETTINGS["grid_range"]
         center = np.array([-6.5 - scale * grid_range[0][0], -0.3 - scale * sum(grid_range[1]) / 2, 0])
 
-        # Grid group
+        # Create grid group
         grid_group = self.generate_grid(grid_range).scale(scale, about_point=ORIGIN).shift(center)
 
-        # Object group
+        # Create object group
         object_group = self.generate_crosshairs()
         object_group.scale(scale, about_point=ORIGIN).shift(center)
 
-        # Current matrix
+        # Create current matrix
         current_matrix = Matrix(
             [["1", "0", "0"], ["0", "1", "0"], ["0", "0", "1"]],
             h_buff = 1.6,
@@ -429,7 +426,7 @@ class MatrixTransformationScene(CGScene):
         ).scale(0.6).shift(RIGHT * 5 + DOWN * 2)
         current_matrix_text = Tex("\mathrm{Current}").scale(0.5).next_to(current_matrix, UP)
 
-        # List of transformations
+        # Create list of transformations
         transformations = self.MATRIX_TRANSFORMATION_SETTINGS["transformations"]
         description_texts = [
             Tex(j["description"]).scale(0.75).set_color("#7F7F7F") for j in transformations
@@ -438,9 +435,7 @@ class MatrixTransformationScene(CGScene):
         description_group.arrange(DOWN, buff=0.2)
         description_group.shift(RIGHT * 4 + UP * 2.5)
 
-        # Animation
-
-        # Fade in
+        # Show scene
         self.play(
             FadeIn(grid_group),
             FadeIn(object_group),
@@ -450,6 +445,7 @@ class MatrixTransformationScene(CGScene):
             run_time = 1
         )
 
+        # Execute transformations
         for i in range(len(transformations)):
             transformation = transformations[i]
             operation = transformation["operation"]
@@ -468,7 +464,6 @@ class MatrixTransformationScene(CGScene):
                 h_buff = 1.6,
                 v_buff = 1.5
             ).scale(0.6).move_to(current_matrix)
-
             self.wait(0.5)
 
             # Show transform matrix
@@ -479,7 +474,6 @@ class MatrixTransformationScene(CGScene):
                 *([description_texts[i - 1].animate.set_color("#BFBFBF")] * (i > 0)),
                 run_time = 0.8
             )
-
             self.wait(0.5)
 
             # Determine transformation animations
@@ -521,7 +515,6 @@ class MatrixTransformationScene(CGScene):
                         about_point = center
                     )
                 )
-
             self.play(
                 *actions,
                 run_time = 1
@@ -535,6 +528,7 @@ class MatrixOrderScene(CGScene):
         return "Right-To-Left or Left-To-Right?"
 
     def animate(self):
+        # Show matrix list
         matrices = [
             Matrix(
                 [["\cos(\pi / 4)", "-\sin(\pi / 4)", "0"], ["\sin(\pi / 4)", "\cos(\pi / 4)", "0"], ["0", "0", "1"]],
@@ -556,16 +550,13 @@ class MatrixOrderScene(CGScene):
         ]
         matrix_group = Group(*matrices)
         matrix_group.arrange(RIGHT)
-
         for i in range(len(matrix_descriptions_texts)):
             matrix_descriptions_texts[i].scale(0.6).next_to(matrices[i], UP).set_color("#BFBFBF")
         matrix_group.add(*matrix_descriptions_texts)
         matrix_group.scale(0.9).move_to(UP)
-
         self.play(
             FadeIn(matrix_group)
         )
-
         self.play(
             *self.swap_caption(
                 "Suppose we have a few operations strung together by multiplying their matrices."
@@ -573,16 +564,16 @@ class MatrixOrderScene(CGScene):
         )
         self.wait(4)
 
-        matrix_group.generate_target()
-        matrix_group.target.scale(0.75)
-        matrix_group.target.shift(RIGHT * 2.5 + UP * 0.5)
-
+        # Show grid
         scale = 0.7
         center = np.array([-6, -1, 0])
         grid_group = self.generate_grid(((-1, 5), (-1, 5))).scale(scale, about_point=ORIGIN).shift(center)
         object_group = self.generate_crosshairs().scale(scale, about_point=ORIGIN).shift(center)
         right_to_left_arrow = Arrow((6.7, 0.3, 0), (-1.7, 0.3, 0)).set_color("#00BFFF")
         left_to_right_arrow = Arrow((-1.7, 0, 0), (6.7, 0, 0)).set_color("#FF7F00")
+        matrix_group.generate_target()
+        matrix_group.target.scale(0.75)
+        matrix_group.target.shift(RIGHT * 2.5 + UP * 0.5)
         self.play(
             *self.swap_caption(
                 "When applying these operations one at a time, should we read them right-to-left or left-to-right?",
@@ -596,6 +587,7 @@ class MatrixOrderScene(CGScene):
         )
         self.wait(4)
 
+        # RTL
         self.play(
             *self.swap_caption(
                 "The usual way is right-to-left, as long as each operation is done from the perspective of the origin.",
@@ -682,6 +674,7 @@ class MatrixOrderScene(CGScene):
         )
         self.wait(0.5)
 
+        # Show vector
         vector_matrix = Matrix([["x"], ["y"], ["1"]]).scale(0.75).next_to(matrices[2], RIGHT).shift(LEFT * 0.6).set_color("#FF00FF")
         self.play(
             *self.swap_caption(
@@ -694,6 +687,7 @@ class MatrixOrderScene(CGScene):
         )
         self.wait(4)
 
+        # Introduce LTR
         new_object_group = self.generate_crosshairs().scale(scale, about_point=ORIGIN).shift(center)
         self.play(
             *self.swap_caption(
@@ -709,6 +703,7 @@ class MatrixOrderScene(CGScene):
         )
         self.wait(4)
 
+        # LTR
         object_group = new_object_group
         self.play(
             *self.swap_caption(
@@ -803,6 +798,7 @@ class MatrixOrderScene(CGScene):
         )
         self.wait(6)
 
+        # Show summary
         old_objects = self.all_objects()
         right_to_left_arrow = Arrow().put_start_and_end_on(np.array([5, 1.4, 0]), np.array([-5, 1.4, 0])).set_color("#00BFFF")
         right_to_left_text = Text("From perspective of origin", color="#00BFFF").scale(0.75).move_to((0, 1.8, 0))
@@ -820,6 +816,7 @@ class MatrixOrderScene(CGScene):
         )
         self.wait(6)
 
+        # Show motivation
         self.play(
             *self.swap_caption(
                 "It is just important to know the difference between the two, to avoid making mistakes or brute-forcing your transformations.",
@@ -833,6 +830,7 @@ class AlphaBlendScene(CGScene):
         return "Alpha Blending"
 
     def animate(self):
+        # Show scene
         self.black_background = RoundedRectangle(width=4, height=4, corner_radius=0.5, stroke_opacity=0, fill_opacity=1).shift(UP * 1.5).set_fill("#000000")
         alpha_slider_line = Line(LEFT * 4 + DOWN * 1.35, RIGHT * 4 + DOWN * 1.35, stroke_width=4, color="#BFBFBF")
         alpha_slider_text = Text("alpha").scale(0.8).next_to(alpha_slider_line, UP, buff=0.1)
@@ -858,39 +856,46 @@ class AlphaBlendScene(CGScene):
         self.play(
             *self.swap_caption("When multiple objects overlap in front of the camera, their alpha values are used to determine the resulting color.")
         )
+        self.wait(1)
 
-        def set_alpha(alpha):
+        # Function for moving alpha slider
+        def set_alpha_slider(alpha):
             return [
                 self.alpha_slider_triangle.animate.move_to(RIGHT * (8 * alpha - 4) + DOWN * 1.6),
                 self.blue_square.animate.set_fill(opacity=alpha)
             ]
 
-        self.wait(1)
+        # Set alpha to 0.2
         self.play(
-            *set_alpha(0.2),
+            *set_alpha_slider(0.2),
             run_time = 1.5
         )
         self.wait(0.5)
+
+        # Set alpha to 0.7
         self.play(
-            *set_alpha(0.7),
+            *set_alpha_slider(0.7),
             run_time = 1.5
         )
         self.wait(1.5)
 
+        # Set alpha to 0.0
         self.play(
-            *set_alpha(0.0),
+            *set_alpha_slider(0.0),
             *self.swap_caption("An alpha of 0.0 means the color is completely invisible."),
             run_time = 1.5
         )
         self.wait(3)
 
+        # Set alpha to 1.0
         self.play(
-            *set_alpha(1.0),
+            *set_alpha_slider(1.0),
             *self.swap_caption("An alpha of 1.0 means the color is opaque and not transparent at all."),
             run_time = 1.5
         )
         self.wait(3)
 
+        # Show second scene
         self.bar_parts_rectangle = Rectangle(1, 4, color="#BFBFBF", fill_opacity=1).set_fill("#000000").shift(RIGHT * 2 + 0.5 * UP)
         self.bar_blend_rectangle = Rectangle(1, 4, color="#BFBFBF", fill_opacity=1).set_fill("#000000").shift(RIGHT * 0.5 + 0.5 * UP)
         bar_blend_text = Text("Mix", color="#BFBFBF").scale(0.5).next_to(self.bar_blend_rectangle, UP)
@@ -919,13 +924,13 @@ class AlphaBlendScene(CGScene):
         )
         self.wait(1)
 
+        # Function for inserting new alpha
         self.red = self.green = self.blue = 0.0
         self.rectangle_group = Group(
             Rectangle(1, 4, color="#BFBFBF", fill_opacity=1).set_fill("#000000").move_to(self.bar_parts_rectangle)
         )
-
         self.green_contributes_group = Group()
-        def add_alpha(alpha, color, circle_pos, iteration):
+        def add_alpha_bar(alpha, color, circle_pos, iteration):
             # Create rectangle and circle
             rectangle = Rectangle(1, 4 * alpha, color="#BFBFBF", fill_opacity=1).set_fill(color).move_to(self.bar_parts_rectangle).shift(2.5 * RIGHT + 2 * (1.0 - alpha) * DOWN)
             circle = Circle(radius=1.2, color=color, stroke_opacity=alpha, fill_opacity=0).move_to(self.black_background.get_center() + circle_pos).set_fill(color)
@@ -945,7 +950,7 @@ class AlphaBlendScene(CGScene):
                 )
                 self.wait(1)
 
-            # Move other rectangles
+            # Scale other rectangles
             self.red *= (1.0 - alpha)
             self.green *= (1.0 - alpha)
             self.blue *= (1.0 - alpha)
@@ -982,6 +987,7 @@ class AlphaBlendScene(CGScene):
                 run_time = 0.8
             )
 
+            # Remove brace from rectangle group
             self.rectangle_group.remove(brace)
             self.add(brace)
 
@@ -1027,21 +1033,24 @@ class AlphaBlendScene(CGScene):
 
             self.rectangle_group.add(rectangle)
 
-        add_alpha(0.8, "#FF0000", LEFT * 0.5, 0)
+        # Add red alpha bar
+        add_alpha_bar(0.8, "#FF0000", LEFT * 0.5, 0)
         self.play(
             *self.swap_caption("This process is repeated when other colors overlap as well.", pos=DOWN * 3)
         )
         self.wait(0.5)
 
-        add_alpha(0.4, "#00FF00", RIGHT * 0.5, 1)
-        add_alpha(0.5, "#007FFF", UP * 0.5, 2)
-        add_alpha(0.3, "#FF7F00", DOWN * 0.5, 3)
+        # Add other alpha bars
+        add_alpha_bar(0.4, "#00FF00", RIGHT * 0.5, 1)
+        add_alpha_bar(0.5, "#007FFF", UP * 0.5, 2)
+        add_alpha_bar(0.3, "#FF7F00", DOWN * 0.5, 3)
 
         left_center = self.black_background.get_center()
         right_center = self.bar_blend_rectangle.get_center()
         center_center = (left_center + right_center) / 2
         final_color = rgb_to_color((self.red, self.green, self.blue))
 
+        # Add connecting rectangle for comparison
         connecting_rectangle = Rectangle(0.01, 0.4, stroke_opacity=0, fill_opacity=1).move_to(center_center).set_fill(final_color)
         upper_line = Line(center_center + 0.005 * LEFT + UP * 0.2, center_center + 0.005 * RIGHT + UP * 0.2, color="#BFBFBF")
         lower_line = Line(center_center + 0.005 * LEFT + DOWN * 0.2, center_center + 0.005 * RIGHT + DOWN * 0.2, color="#BFBFBF")
@@ -1050,7 +1059,6 @@ class AlphaBlendScene(CGScene):
             upper_line,
             lower_line
         )
-
         self.play(
             *self.swap_caption("Each color contributes a little to the final result.", pos=DOWN * 3),
             connecting_group.animate.stretch_to_fit_width(right_center[0] - left_center[0] - 0.6)
@@ -1070,11 +1078,11 @@ class AlphaBlendScene(CGScene):
         )
         self.wait(1.4)
 
+        # Highlight green-multiplied values, show green brace
         for j in self.green_contributes_group:
             j.generate_target()
             j.target.scale(1.2)
             j.target.set_color("#FFFF00")
-
         brace = Brace(self.rectangle_group[2], RIGHT)
         brace_text = Text("0.14").scale(0.6).next_to(brace, RIGHT)
         brace_group = Group(brace, brace_text)
@@ -1085,11 +1093,11 @@ class AlphaBlendScene(CGScene):
         )
         self.wait(5)
 
+        # Red-orange comparison
         for j in self.green_contributes_group:
             j.generate_target()
             j.target.scale(1 / 1.2)
             j.target.set_color("#FFFFFF")
-
         self.play(
             *self.swap_caption("Note that the order of the colors matters for the end result.", pos=DOWN * 3),
             *[MoveToTarget(j) for j in self.green_contributes_group],
@@ -1098,7 +1106,7 @@ class AlphaBlendScene(CGScene):
         self.wait(3)
 
         self.play(
-            *self.swap_caption("For example, even though red had a higher alpha than blue (0.8 > 0.5), it has less influence because it is further in the back.", pos=DOWN * 3, t2c={"red": "#FF0000", "blue": "#007FFF", "0.8": "#FF0000", "0.5": "#007FFF"})
+            *self.swap_caption("For example, even though red had a higher alpha than orange (0.8 > 0.3), it has less influence because it is further in the back.", pos=DOWN * 3, t2c={"red": "#FF0000", "orange": "#FF7F00", "0.8": "#FF0000", "0.3": "#FF7F00"})
         )
         self.wait(3)
 
@@ -1121,6 +1129,7 @@ class CameraProjectionScene(CGScene):
             )
         )
 
+        # Show matrices
         matrix_group = Group(
             Matrix([
                 ["k_x", "0", "0", "x_0"],
@@ -1142,23 +1151,28 @@ class CameraProjectionScene(CGScene):
             ])
         ).arrange(RIGHT).scale(0.8).move_to(UP)
         matrix_group.add(
-            Text("Image", color="#BFBFBF").scale(0.75).next_to(matrix_group[0], DOWN),
-            Text("Projection", color="#BFBFBF").scale(0.75).next_to(matrix_group[1], DOWN),
-            Text("Model View", color="#BFBFBF").scale(0.75).next_to(matrix_group[2], DOWN)
+            Text("Image Matrix", color="#BFBFBF").scale(0.6).next_to(matrix_group[0], DOWN),
+            Text("Projection Matrix", color="#BFBFBF").scale(0.6).next_to(matrix_group[1], DOWN),
+            Text("Model View Matrix", color="#BFBFBF").scale(0.6).next_to(matrix_group[2], DOWN)
         ).fix_in_frame()
-
         self.play(
             FadeIn(matrix_group)
         )
         self.wait(3.5)
 
+        self.play(
+            FadeOut(matrix_group),
+            *self.swap_caption("Let's look at these operations one by one. Suppose we have a scene, and a camera observing it."),
+        )
+
+
+        # Create 3D scene
         object_group = Group(
             Cube(color="#00BF00").scale(2).stretch(0.05, 2).shift(0.05 * IN),
             Sphere(radius=0.9, color="#7F007F").shift((-0.7, -0.3, 0.9)),
             Sphere(radius=0.5, color="#FF0000").shift((0.9, 0.2, 0.5)),
             Sphere(radius=0.3, color="#007FFF").shift((0.7, 1.4, 0.3))
         )
-
         axes = ThreeDAxes(
             x_range=[-3, 3, 1],
             y_range=[-3, 3, 1],
@@ -1181,6 +1195,7 @@ class CameraProjectionScene(CGScene):
         )
         axes_group.rotate(pi / 2, RIGHT)
 
+        # Camera/scene settings
         CAMERA_THETA = 130 * DEGREES
         CAMERA_PHI = -30 * DEGREES
         CAMERA_POSITION = np.array([sin(CAMERA_THETA) * sin(90 * DEGREES + CAMERA_PHI) * 4, -cos(CAMERA_THETA) * sin(90 * DEGREES + CAMERA_PHI) * 4, cos(90 * DEGREES + CAMERA_PHI) * 4])
@@ -1189,8 +1204,10 @@ class CameraProjectionScene(CGScene):
         F = 2
         ASPECT = 16 / 9
 
+        # Normal points for frustrum
         points = [UP + (2 * (j < 2) - 1) * RIGHT * ASPECT / F + (2 * (0 < j < 3) - 1) * IN / F for j in range(4)]
 
+        # Create and rotate camera and unit-cube group
         camera_group = Group(
             Sphere(radius=0.1, color="#7FFFFF"),
             *[Line(ORIGIN, 6 * points[j], stroke_width=2, color="#7FFFFF") for j in range(4)],
@@ -1203,11 +1220,7 @@ class CameraProjectionScene(CGScene):
         camera_group.rotate_about_origin(CAMERA_PHI, RIGHT).rotate_about_origin(CAMERA_THETA, OUT).shift(CAMERA_POSITION)
         unit_cube_group.rotate_about_origin(CAMERA_PHI, RIGHT).rotate_about_origin(CAMERA_THETA, OUT).shift(CAMERA_POSITION)
 
-        self.play(
-            FadeOut(matrix_group),
-            *self.swap_caption("Let's look at these operations one by one. Suppose we have a scene, and a camera observing it."),
-        )
-
+        # Show 3D scene
         self.camera.frame.set_euler_angles(
             theta=20 * DEGREES,
             phi=55 * DEGREES
@@ -1225,6 +1238,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(3)
 
+        # Move behind camera
         self.camera.frame.generate_target()
         self.camera.frame.target.set_euler_angles(
             theta=CAMERA_THETA,
@@ -1237,6 +1251,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(3)
 
+        # First matrix: model view
         ambient_rotation_function = lambda m, dt: m.increment_theta(-0.05 * dt)
         self.camera.frame.add_updater(ambient_rotation_function)
         self.camera.frame.generate_target()
@@ -1259,6 +1274,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(1.5)
 
+        # Realign camera/scene
         self.camera.frame.generate_target()
         self.camera.frame.target.move_to(UP * 3)
         to_rotate_group = Group() + object_group + camera_group + unit_cube_group
@@ -1298,6 +1314,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(3.5)
 
+        # Second matrix: projection
         matrix_group[1].to_corner(RIGHT + UP)
         matrix_group[4].next_to(matrix_group[1], DOWN)
         self.pin_to_front(matrix_group[1], self.get_animation_number())
@@ -1319,6 +1336,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(3.5)
 
+        # Describe f
         self.play(
             *self.swap_caption(
                 "​f is the focal distance, which indicates how much the camera zooms in.",
@@ -1327,6 +1345,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(3.5)
 
+        # Adjust f
         to_stretch_group = Group() + camera_group[1:] + unit_cube_group
         to_stretch_group.generate_target()
         to_stretch_group.target.stretch(0.5, 0, about_point=ORIGIN).stretch(0.5, 2, about_point=ORIGIN)
@@ -1339,6 +1358,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(3.5)
 
+        # Describ aspect
         to_stretch_group.generate_target()
         to_stretch_group.target.stretch(2, 0, about_point=ORIGIN).stretch(2, 2, about_point=ORIGIN)
         self.play(
@@ -1350,6 +1370,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(4)
 
+        # Show aspect squish
         to_squish_group = Group() + camera_group[1:] + unit_cube_group + object_group
         self.play(
             *self.swap_caption(
@@ -1369,6 +1390,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(2)
 
+        # Describe near and far
         self.play(
             *self.swap_caption(
                 "Lastly, near and far are positive values which determine the distances of the near-plane and the far-plane from the camera.",
@@ -1377,12 +1399,12 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(1)
 
+        # Adjust near and far
         near_group = unit_cube_group[4:8]
         near_group.generate_target()
+        near_group.target.scale(3, about_point=ORIGIN)
         far_group = unit_cube_group[8:]
         far_group.generate_target()
-
-        near_group.target.scale(3, about_point=ORIGIN)
         far_group.target.scale(1.2, about_point=ORIGIN)
         self.play(
             MoveToTarget(near_group),
@@ -1415,6 +1437,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(5)
 
+        # Define projection functions
         projection_matrix = np.array([
             [F / ASPECT, 0, 0, 0],
             [0, F, 0, 0],
@@ -1427,11 +1450,11 @@ class CameraProjectionScene(CGScene):
             vector = (matrix @ vector.transpose()).flatten()
             return [vector[0] / vector[3], -vector[2] / vector[3], vector[1] / vector[3]]
 
-        frustrum = Cube(color="#FFFF7F", opacity=0.25, stroke_width=0).apply_points_function(
+        # Show frustrum
+        frustrum = Cube(color="#FFFF7F", stroke_width=0).set_opacity(0.25).apply_points_function(
             lambda points: np.array([apply_projection(projection_matrix_inverse, point) for point in points]),
             about_point=ORIGIN
         )
-
         self.play(
             *self.swap_caption(
                 "This means that only objects within this space are rendered to the image.",
@@ -1464,6 +1487,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(1)
 
+        # Apply projection to scene
         self.camera.frame.generate_target()
         self.camera.frame.target.move_to(ORIGIN)
         to_project_group = Group() + object_group + unit_cube_group
@@ -1478,6 +1502,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(3)
 
+        # Invert Z-axis
         self.camera.frame.remove_updater(ambient_rotation_function)
         self.camera.frame.generate_target()
         self.camera.frame.target.set_euler_angles(
@@ -1499,7 +1524,6 @@ class CameraProjectionScene(CGScene):
         self.wait(3)
 
         self.camera.frame.remove_updater(ambient_rotation_function)
-
         self.unpin_from_front(matrix_group[1])
         self.unpin_from_front(matrix_group[4])
         to_squish_group = Group() + object_group + unit_cube_group
@@ -1521,6 +1545,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(4)
 
+        # Show flattened projected cube
         self.play(
             to_squish_group.animate.stretch(0.01, 1, about_point=ORIGIN),
             *self.swap_caption(
@@ -1554,6 +1579,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(3)
 
+        # Third matrix: viewport
         matrix_group[0].to_corner(RIGHT + UP)
         matrix_group[3].next_to(matrix_group[0], DOWN)
         self.pin_to_front(matrix_group[0], self.get_animation_number())
@@ -1568,6 +1594,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(1)
 
+        # Apply viewport matrix
         scale = 2 / 1080
         height = 5
         width = height * ASPECT
@@ -1599,6 +1626,7 @@ class CameraProjectionScene(CGScene):
         )
         self.wait(4)
 
+        # Voilá!
         self.unpin_from_front(matrix_group[0])
         self.unpin_from_front(matrix_group[3])
         self.play(
@@ -1617,7 +1645,7 @@ class CameraProjectionScene(CGScene):
         self.wait(2.5)
 
 RENDER = True
-ANIMATION = "-a"
+ANIMATION = "CameraProjectionScene"
 SKIP_TO = 0
 
 if __name__ == "__main__":
