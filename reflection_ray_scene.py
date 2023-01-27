@@ -208,7 +208,7 @@ class MainScene(CGScene):
             run_time = 1.2
         )
 
-HIGH_QUALITY = False
+HIGH_QUALITY = True
 START_AT = 0
 END_AT = 1000
 

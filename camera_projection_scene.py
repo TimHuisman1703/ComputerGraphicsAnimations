@@ -532,7 +532,6 @@ class MainScene(CGScene):
             added_anims=[
                 *self.swap_caption(
                     "And voilá! A camera projection, made with a 3D scene and just three matrix transformations.",
-                    t2c={"voilá": "#FF3FFF"},
                     pos=DOWN * 3.1
                 ),
                 FadeOut(matrix_group[0], shift=RIGHT),

@@ -1,6 +1,5 @@
 from imports import *
 from manim import *
-from math import pi
 
 class MainScene(CGScene):
     def get_title(self):
@@ -264,7 +263,7 @@ class MainScene(CGScene):
         brace_text = Text("0.14").scale(0.6).next_to(brace, RIGHT)
         brace_group = Group(brace, brace_text)
         self.play(
-            *self.swap_caption("For example, green contributes 0.4 * 0.5 * 0.7 = 14% to the final color.", pos=DOWN * 3, t2c={"green": "#00FF00", "0.4 * 0.5 * 0.7": "#FFFF00", "14%": "#FFFF00"}),
+            *self.swap_caption("For example, green contributes 0.4 · 0.5 · 0.7 = 14% to the final color.", pos=DOWN * 3, t2c={"green": "#00FF00", "0.4 * 0.5 * 0.7": "#FFFF00", "14%": "#FFFF00"}),
             *[MoveToTarget(j) for j in self.green_contributes_group],
             FadeIn(brace_group)
         )
