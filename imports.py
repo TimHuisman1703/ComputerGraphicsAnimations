@@ -2,66 +2,31 @@ if __name__ == "__main__":
     print("\033[0m\n\033[1;31mThis is the imports file, not a scene file.\n\033[1;36mTo render a video, run any of the files ending in \"\033[1;33m_scene.py\033[1;36m\".\n\n\033[0m", end="")
     exit()
 
-import cv2
 from manim import *
 import numpy as np
 import os
 
 DIRECTORY = os.path.realpath(os.path.dirname(__file__))
 BACKGROUND_COLOR = "#36393F"
-MOTION_BLUR_FACTOR = 5
 
 config.background_color = BACKGROUND_COLOR
 
-def merge_motion_blur(input_filename, output_filename):
-    print(f"\033[32mApplying motion blur to \033[1m{input_filename}\033[0m")
-
-    cap = cv2.VideoCapture(input_filename)
-
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 5
-    out = cv2.VideoWriter(output_filename, cv2.VideoWriter_fourcc(*"mp4v"), 60, (frame_width, frame_height))
-    
-    for frame_nr in range(1, frame_count + 1):
-        ret, frame = cap.read()
-        if not ret:
-            break
-        
-        frame = np.average(np.array([frame] + [cap.read()[1] for _ in range(MOTION_BLUR_FACTOR - 1)]), axis=0).astype(frame.dtype)
-
-        out.write(frame)
-
-        if frame_nr % 10 == 0 or frame_nr == frame_count:
-            cv2.imshow(output_filename, frame)
-            cv2.waitKey(1)
-
-            print(f"\033[1m{frame_nr} / {frame_count}\033[0m")
-    
-    cap.release()
-    out.release()
-    cv2.destroyAllWindows()
-
-def render_video(filename, high_quality=True, start_at=0, end_at=1000, motion_blur=False):
+def render_video(filename, high_quality=True, start_at=0, end_at=1000):
     command = "echo lmao"
 
     if not os.path.exists(f"{DIRECTORY}/videos"):
         os.mkdir(f"{DIRECTORY}/videos")
 
     name = filename.split("\\")[-1][:-3]
-    output_intermediate_filename = f"{DIRECTORY}\\videos\\{name}_intermediate.mp4"
     output_filename = f"{DIRECTORY}\\videos\\{name}.mp4"
 
     if high_quality:
-        command = f"manim {filename} MainScene --write_to_movie --output_file {[output_filename, output_intermediate_filename][motion_blur]} --resolution 3840,2160 --frame_rate {60 * [1, MOTION_BLUR_FACTOR][motion_blur]}"
+        command = f"manim {filename} MainScene --write_to_movie --output_file {output_filename} --from_animation_number {start_at},{end_at} --resolution 1920,1080 --frame_rate 60"
     else:
-        command = f"manim {filename} MainScene -p --disable_caching --from_animation_number {start_at},{end_at} --resolution 640,360 --frame_rate 5"
+        command = f"manim {filename} MainScene -p --disable_caching --from_animation_number {start_at},{end_at} --resolution 480,270 --frame_rate 5"
 
     print(f"\033[0;32m{command}\033[0m")
     os.system(command)
-
-    if high_quality and motion_blur:
-        merge_motion_blur(output_intermediate_filename, output_filename)
 
 class CGScene(ThreeDScene):
     def get_title(self):
