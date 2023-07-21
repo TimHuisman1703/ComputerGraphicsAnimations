@@ -75,8 +75,9 @@ class CGScene(ThreeDScene):
     def swap_caption(self, text, **kwargs):
         # Set default kwargs
         t2c = kwargs.get("t2c", {})
+        t2s = kwargs.get("t2s", {})
         scale = kwargs.get("scale", 0.7)
-        pos = kwargs.get("pos", DOWN * 2.6)
+        pos = kwargs.get("pos", DOWN * 2.8)
 
         # Group text in new lines
         texts = text.split()
@@ -99,7 +100,8 @@ class CGScene(ThreeDScene):
         print("\033[0m", end="")
 
         # Create new caption
-        new_caption = Text(final_text).scale(scale).shift(pos).set_color("#FFFFFF")
+        new_caption = Text(final_text, t2s=t2s).set_color("#FFFFFF")
+        new_caption.scale(scale).shift(pos)
         new_caption._set_color_by_t2c(t2c)
         new_caption.z_index = 100
         new_caption.add_background_rectangle("#000000", 0.5, buff=0.2, corner_radius=0.2)
@@ -115,6 +117,30 @@ class CGScene(ThreeDScene):
     
     def get_asset(self, filename):
         return f"{DIRECTORY}/assets/{filename}"
+
+    def appear(self, obj):
+        if type(obj) == Arrow:
+            start = obj.get_start()
+            end = obj.get_end()
+
+            obj.generate_target()
+            obj.put_start_and_end_on(start, start + 0.001 * (end - start))
+            obj.set_fill(opacity=0).set_stroke(opacity=0)
+            return MoveToTarget(obj)
+        else:
+            return Create(obj)
+    
+    def disappear(self, obj):
+        if type(obj) == Arrow:
+            start = obj.get_start()
+            end = obj.get_end()
+
+            obj.generate_target()
+            obj.target.put_start_and_end_on(end + 0.001 * (start - end), end)
+            obj.target.set_fill(opacity=0).set_stroke(opacity=0)
+            return MoveToTarget(obj)
+        else:
+            return Uncreate(obj)
 
     def construct(self):
         # Title
