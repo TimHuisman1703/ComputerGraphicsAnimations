@@ -497,8 +497,16 @@ class MainScene(CGScene):
         x2 = matrices[2].get_right()[0]
         right_to_left_arrow = Arrow(stroke_width=6, max_stroke_width_to_length_ratio=1e9).set_color(BLUE).put_start_and_end_on((x2, y1 + 0.3, 0), (x1, y1 + 0.3, 0))
         left_to_right_arrow = Arrow(stroke_width=6, max_stroke_width_to_length_ratio=1e9).set_color(ORANGE).put_start_and_end_on((x1, y2 - 0.3, 0), (x2, y2 - 0.3, 0))
-        right_to_left_text = Text("Aligned with grid", color=BLUE).scale(0.7).next_to(right_to_left_arrow, UP)
-        left_to_right_text = Text("Aligned with object", color=ORANGE).scale(0.7).next_to(left_to_right_arrow, DOWN)
+        right_to_left_text = Text(
+            "Aligned with grid (a.k.a. global interpretation)",
+            color=BLUE,
+            t2c={"grid": YELLOW, "global": YELLOW}
+        ).scale(0.7).next_to(right_to_left_arrow, UP * 0.8)
+        left_to_right_text = Text(
+            "Aligned with object (a.k.a. local interpretation)",
+            color=ORANGE,
+            t2c={"object": YELLOW, "local": YELLOW}
+        ).scale(0.7).next_to(left_to_right_arrow, DOWN * 0.8)
 
         self.play(
             self.appear(right_to_left_arrow),

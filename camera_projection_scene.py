@@ -34,30 +34,49 @@ class MainScene(CGScene):
         )
 
         # Show matrices
-        matrix_group = Group(
-            Matrix([
+        matrix_templates = [
+            [
                 ["k_x", "0", "0", "x_0"],
                 ["0", "k_y", "0", "y_0"],
                 ["0", "0", "1", "0"],
-                ["0", "0", "0", "1"],
-            ]),
-            MobjectMatrix([
-                [Tex("$\\frac{f}{aspect}$").scale(0.75), Tex("$0$"), Tex("$0$"), Tex("$0$")],
-                [Tex("$0$"), Tex("$f$"), Tex("$0$"), Tex("$0$")],
-                [Tex("$0$"), Tex("$0$"), Tex("$\\frac{near+far}{near-far}$").scale(0.45), Tex("$\\frac{2 \cdot near \cdot far}{near-far}$").scale(0.45)],
-                [Tex("$0$"), Tex("$0$"), Tex("$-1$"), Tex("$0$")]
-            ]),
-            Matrix([
+                ["0", "0", "0", "1"]
+            ],
+            [
+                ["\\frac{f}{aspect}", "0", "0", "0"],
+                ["0", "f", "0", "0"],
+                ["0", "0", "\\frac{near + far}{near - far}", "\\frac{2 \cdot near \cdot far}{near - far}"],
+                ["0", "0", "-1", "0"]
+            ],
+            [
                 ["m_{00}", "m_{01}", "m_{02}", "t_0"],
                 ["m_{10}", "m_{11}", "m_{12}", "t_1"],
                 ["m_{20}", "m_{21}", "m_{22}", "t_2"],
-                ["0", "0", "0", "1"],
-            ])
-        ).arrange(RIGHT).scale(0.8).move_to(UP)
+                ["0", "0", "0", "1"]
+            ]
+        ]
+        matrix_scales = {
+            (1, 0, 0): 0.75,
+            (1, 2, 2): 0.45,
+            (1, 2, 3): 0.45,
+        }
+
+        matrix_group = Group()
+        for i in range(3):
+            matrix = MobjectMatrix(
+                [
+                    [
+                        Tex(f"${matrix_templates[i][y][x]}$").set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(matrix_scales.get((i, y, x), 1))
+                        for x in range(4)
+                    ] for y in range(4)
+                ]
+            )
+            matrix_group.add(matrix)
+
+        matrix_group.arrange(RIGHT).scale(0.8).move_to(UP)
         matrix_group.add(
-            Text("Image Matrix").set_color("#BFBFBF").scale(0.6).next_to(matrix_group[0], DOWN),
-            Text("Projection Matrix").set_color("#BFBFBF").scale(0.6).next_to(matrix_group[1], DOWN),
-            Text("Model View Matrix").set_color("#BFBFBF").scale(0.6).next_to(matrix_group[2], DOWN)
+            Text("Image Matrix").set_color("#BFBFBF").set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(0.6).next_to(matrix_group[0], DOWN),
+            Text("Projection Matrix").set_color("#BFBFBF").set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(0.6).next_to(matrix_group[1], DOWN),
+            Text("Model View Matrix").set_color("#BFBFBF").set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(0.6).next_to(matrix_group[2], DOWN)
         )
         for obj in matrix_group:
             obj.z_index = 100
@@ -68,8 +87,10 @@ class MainScene(CGScene):
         self.wait(3.5)
 
         self.play(
+            *self.swap_caption(
+                "Let's look at these operations one by one. Suppose we have a scene, and a camera observing it."
+            ),
             FadeOut(matrix_group),
-            *self.swap_caption("Let's look at these operations one by one. Suppose we have a scene, and a camera observing it."),
         )
 
         # Create 3D scene
@@ -145,7 +166,7 @@ class MainScene(CGScene):
         )
         self.play(
             *[Create(j) for j in axes_group],
-            run_time = 1.2
+            run_time=1.2
         )
         self.play(
             FadeIn(object_group)
@@ -162,7 +183,9 @@ class MainScene(CGScene):
             phi=90 * DEGREES + CAMERA_PHI,
             frame_center=-CAMERA_POSITION,
             added_anims=[
-                *self.swap_caption("We want to take a picture from the camera's perspective."),
+                *self.swap_caption(
+                    "We want to take a picture from the camera's perspective."
+                ),
             ]
         )
         self.wait(3)
@@ -194,7 +217,7 @@ class MainScene(CGScene):
             added_anims=[
                 MoveToTarget(to_rotate_group),
             ],
-            run_time = 2.5
+            run_time=2.5
         )
         self.wait(2)
 
@@ -268,34 +291,32 @@ class MainScene(CGScene):
         # Describe aspect
         to_stretch_group.generate_target()
         to_stretch_group.target.stretch(2, 0, about_point=ORIGIN).stretch(2, 2, about_point=ORIGIN)
+        to_squish_group = Group(*camera_group[1:], *unit_cube_group)
         self.play(
             MoveToTarget(to_stretch_group),
             *self.swap_caption(
-                "aspect defines the aspect ratio of the image. This is needed when making non-square images.",
-                t2c={"[0:6]": "#7FFF7F"}
+                "aspect defines the aspect ratio of the image. It works like f, but only affects the camera's vision horizontally.",
+                t2c={"[0:6]": "#7FFF7F", "[49:50]": "#FFFF3F"}
             ),
-        )
-        self.wait(4)
-
-        # Show aspect squish
-        to_squish_group = Group(*camera_group[1:], *unit_cube_group, *object_group)
-        self.play(
-            *self.swap_caption(
-                "This is because after projection, the scene is put inside a cube, so it should be horizontally \"squished\" to fit.",
-                t2c={"cube": "#FFFF00"}
-            ),
-        )
-        self.wait(1)
-        self.play(
-            to_squish_group.animate.stretch(1 / ASPECT, 0, about_point = ORIGIN),
-            run_time = 0.8
-        )
-        self.wait(1)
-        self.play(
-            to_squish_group.animate.stretch(ASPECT, 0, about_point = ORIGIN),
-            run_time = 0.8
         )
         self.wait(2)
+        self.play(
+            to_squish_group.animate.stretch(1 / ASPECT, 0, about_point = ORIGIN),
+            run_time=0.8
+        )
+        self.wait(2)
+
+        self.play(
+            *self.swap_caption(
+                "This is needed to make non-square images, which fit nicely on rectangular windows and monitors.",
+            ),
+            to_squish_group.animate.stretch(0.6, 0, about_point = ORIGIN),
+        )
+        self.wait(2.5)
+        self.play(
+            to_squish_group.animate.stretch(ASPECT / 0.6, 0, about_point = ORIGIN),
+        )
+        self.wait(0.5)
 
         # Describe near and far
         self.play(
@@ -407,7 +428,7 @@ class MainScene(CGScene):
                     to_project_group
                 ),
             ],
-            run_time = 2.5
+            run_time=2.5
         )
         self.wait(3)
 
@@ -451,7 +472,7 @@ class MainScene(CGScene):
         self.play(
             to_squish_group.animate.stretch(0.01, 1, about_point=ORIGIN),
             *self.swap_caption(
-                "If the cube is flattened, you can see how this scene still seems to have perspective, despite being flat.",
+                "If we were to flatten the cube, the scene still seems to have perspective, despite being flat.",
             ),
         )
         self.wait(4)
@@ -461,7 +482,7 @@ class MainScene(CGScene):
             added_anims=[
                 to_squish_group.animate.stretch(100, 1, about_point=ORIGIN),
                 *self.swap_caption(
-                    "However, we don't flatten the cube, since we should still use the Z-coordinate later to determine which objects are in front.",
+                    "We don't actually flatten the cube though, as the Z-coordinates are still useful to determine how far away objects are.",
                 ),
             ]
         )
@@ -488,7 +509,7 @@ class MainScene(CGScene):
             FadeIn(matrix_group[0], shift=LEFT),
             FadeIn(matrix_group[3], shift=LEFT),
             *self.swap_caption(
-                "To solve this, we use the Viewport Matrix, which just scales and translates the scene by a certain amount.",
+                "To solve this, we use the Viewport Matrix, which just scales and translates the scene a bit.",
                 pos=DOWN * 3.1
             ),
         )
@@ -520,7 +541,7 @@ class MainScene(CGScene):
 
         self.play(
             *self.swap_caption(
-                "Now each position correponds to a pixel between (0, 0) and, e.g., (1919, 1079), which the computer understands.",
+                "Now each position correponds to a pixel between (0, 0) and, e.g., (1919, 1079), which the computer can understand.",
                 pos=DOWN * 3.1
             ),
         )
@@ -540,9 +561,9 @@ class MainScene(CGScene):
         )
         self.wait(2.5)
 
-HIGH_QUALITY = True
-START_AT = 0
-END_AT = 1000
+HIGH_QUALITY = False
+START_AT = 25
+END_AT = 40
 
 if __name__ == "__main__":
     render_video(os.path.realpath(__file__), HIGH_QUALITY, START_AT, END_AT)

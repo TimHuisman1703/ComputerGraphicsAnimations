@@ -111,14 +111,14 @@ class MainScene(CGScene):
         self.play(
             small_normal_arrow_a.animate.shift(negative_light_arrow.get_end()),
             small_normal_text_a.animate.shift(negative_light_arrow.get_end() + DOWN * 0.4),
-            run_time = 0.6
+            run_time=0.6
         )
         small_normal_arrow_b = small_normal_arrow_a.copy()
         small_normal_text_b = small_normal_text_a.copy()
         self.play(
             small_normal_arrow_b.animate.shift((0, -negative_light_arrow.get_end()[1], 0)),
             small_normal_text_b.animate.shift((0, -negative_light_arrow.get_end()[1], 0)),
-            run_time = 0.6
+            run_time=0.6
         )
         self.wait(1)
 
@@ -143,7 +143,7 @@ class MainScene(CGScene):
         dot_formula_text.scale(0.8).shift(LEFT * 2.4 + DOWN * 2.2)
         self.play(
             Write(dot_formula_text),
-            run_time = 1.2
+            run_time=1.2
         )
         self.wait(2.5)
 
@@ -178,7 +178,7 @@ class MainScene(CGScene):
             light_arrow.animate.put_start_and_end_on(LEFT * 5 + DOWN * 1.5, LEFT * 5 + UP * 1.5),
             light_text.animate.move_to(LEFT * 5.3),
             mirror_group.animate.move_to(LEFT * 9 + DOWN * 1.5),
-            run_time = 1.2
+            run_time=1.2
         )
         self.add(formula_group)
         self.wait(2)
@@ -205,7 +205,7 @@ class MainScene(CGScene):
                 axis = np.array([0, 0, 1]),
                 about_point = LEFT * 5
             ),
-            run_time = 1.2
+            run_time=1.2
         )
 
 HIGH_QUALITY = True

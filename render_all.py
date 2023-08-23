@@ -5,7 +5,7 @@ HIGH_QUALITY = True
 LIST = [
     "alpha_blending_scene.py",
     "bilinear_interpolation_scene.py",
-    "camera_projection_scene.py",
+    # "camera_projection_scene.py",
     "matrix_reading_order_scene.py",
     "reflection_ray_scene.py",
 ]

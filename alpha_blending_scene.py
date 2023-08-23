@@ -25,12 +25,16 @@ class MainScene(CGScene):
         self.wait(1)
 
         self.play(
-            *self.swap_caption("Transparency of a color is handled by assigning an \"alpha\" value to it, which indicates the opacity of the color.")
+            *self.swap_caption(
+                "Transparency of a color is handled by assigning an \"alpha\" value to it, which indicates its opacity."
+            )
         )
         self.wait(3.5)
 
         self.play(
-            *self.swap_caption("When multiple objects overlap in front of the camera, their alpha values are used to determine the resulting color.")
+            *self.swap_caption(
+                "When objects overlap in front of the camera, their alpha values are used to blend their colors."
+            )
         )
         self.wait(1)
 
@@ -44,30 +48,34 @@ class MainScene(CGScene):
         # Set alpha to 0.2
         self.play(
             *set_alpha_slider(0.2),
-            run_time = 1.5
+            run_time=1.5
         )
         self.wait(0.5)
 
         # Set alpha to 0.7
         self.play(
             *set_alpha_slider(0.7),
-            run_time = 1.5
+            run_time=1.5
         )
         self.wait(1.5)
 
         # Set alpha to 0.0
         self.play(
             *set_alpha_slider(0.0),
-            *self.swap_caption("An alpha of 0.0 means the color is completely invisible."),
-            run_time = 1.5
+            *self.swap_caption(
+                "An alpha of 0.0 means the color is completely invisible."
+            ),
+            run_time=1.5
         )
         self.wait(3)
 
         # Set alpha to 1.0
         self.play(
             *set_alpha_slider(1.0),
-            *self.swap_caption("An alpha of 1.0 means the color is opaque and not transparent at all."),
-            run_time = 1.5
+            *self.swap_caption(
+                "An alpha of 1.0 means the color is opaque and not transparent at all."
+            ),
+            run_time=1.5
         )
         self.wait(3)
 
@@ -88,6 +96,7 @@ class MainScene(CGScene):
         formula_black_square = Square(side_length=0.32, color="#BFBFBF", fill_opacity=1).set_fill("#000000")
         self.formula_text = Text("Color = ", color="#BFBFBF").scale(0.5).to_corner(LEFT + DOWN).shift(RIGHT * 2.2 + UP * 1.5)
         self.formula_group = Group(formula_black_square).next_to(self.formula_text, RIGHT, buff=0.2)
+        self.set_caption_pos(DOWN * 3)
         self.play(
             FadeOut(alpha_slider_group),
             FadeOut(square_group),
@@ -95,8 +104,10 @@ class MainScene(CGScene):
             FadeIn(bar_group),
             FadeIn(self.formula_text),
             FadeIn(self.formula_group),
-            *self.swap_caption("With multiple overlaps, alpha blending works like this.", pos=DOWN * 3),
-            run_time = 1
+            *self.swap_caption(
+                "With multiple overlaps, alpha blending works like this."
+            ),
+            run_time=1
         )
         self.wait(1)
 
@@ -122,7 +133,9 @@ class MainScene(CGScene):
                 self.wait(0.5)
 
                 self.play(
-                    *self.swap_caption("When overlapping with a new color, the old color should first be scaled to make room for the new color.", pos=DOWN * 3)
+                    *self.swap_caption(
+                        "When overlapping with a new color, the old color should first be scaled to make room for the new color."
+                    )
                 )
                 self.wait(1)
 
@@ -150,7 +163,7 @@ class MainScene(CGScene):
             self.play(
                 *formula_actions,
                 FadeIn(brace),
-                run_time = 0.6
+                run_time=0.6
             )
             formula_text_a = Tex(f"$\cdot \, {1.0 - alpha:.1}$").scale(0.6).next_to(self.formula_group, RIGHT, buff=0.1)
             self.formula_group.add(formula_text_a)
@@ -160,7 +173,7 @@ class MainScene(CGScene):
                 self.bar_blend_rectangle.animate.set_fill(rgb_to_color((self.red, self.green, self.blue)), opacity=1),
                 MoveToTarget(self.rectangle_group),
                 FadeIn(formula_text_a, shift=LEFT),
-                run_time = 0.8
+                run_time=0.8
             )
 
             # Remove brace from rectangle group
@@ -171,7 +184,9 @@ class MainScene(CGScene):
                 self.wait(2)
 
                 self.play(
-                    *self.swap_caption("Once room has been made, the new color, multiplied by its alpha value, is added to the final color.", pos=DOWN * 3)
+                    *self.swap_caption(
+                        "Once room has been made, the new color, multiplied by its alpha value, is added to the final color."
+                    )
                 )
                 self.wait(1)
 
@@ -197,13 +212,16 @@ class MainScene(CGScene):
                 FadeIn(formula_text_b, shift=LEFT),
                 FadeIn(formula_square, shift=LEFT),
                 FadeIn(formula_text_c, shift=LEFT),
-                run_time = 0.8
+                run_time=0.8
             )
             self.wait(1.5)
 
             if iteration == 0:
                 self.play(
-                    *self.swap_caption("With an alpha of 0.8, the resulting color is 80% the new\ncolor and 20% the old color.", pos=DOWN * 3)
+                    *self.swap_caption(
+                        "With an alpha of 0.8, the resulting color is 80% the new\ncolor and 20% the old color.",
+                        t2c={"0.8": "#FFFF00", "80%": "#FFFF00", "20%": "#FFFF00"}
+                    ),
                 )
                 self.wait(4)
 
@@ -212,7 +230,9 @@ class MainScene(CGScene):
         # Add red alpha bar
         add_alpha_bar(0.8, "#FF0000", LEFT * 0.5, 0)
         self.play(
-            *self.swap_caption("This process is repeated when other colors overlap as well.", pos=DOWN * 3)
+            *self.swap_caption(
+                "This process is repeated when other colors overlap as well."
+            )
         )
         self.wait(0.5)
 
@@ -236,13 +256,17 @@ class MainScene(CGScene):
             lower_line
         )
         self.play(
-            *self.swap_caption("Each color contributes a little to the final result.", pos=DOWN * 3),
+            *self.swap_caption(
+                "Each color contributes a little to the final result."
+            ),
             connecting_group.animate.stretch_to_fit_width(right_center[0] - left_center[0] - 0.6)
         )
         self.wait(3)
 
         self.play(
-            *self.swap_caption("How much a color contributes can be calculated by observing this formula.", pos=DOWN * 3)
+            *self.swap_caption(
+                "How much a color contributes can be calculated by observing this formula."
+            )
         )
         self.play(
             self.formula_group.animate.scale(1.1),
@@ -263,7 +287,10 @@ class MainScene(CGScene):
         brace_text = Text("0.14").scale(0.6).next_to(brace, RIGHT)
         brace_group = Group(brace, brace_text)
         self.play(
-            *self.swap_caption("For example, green contributes 0.4 · 0.5 · 0.7 = 14% to the final color.", pos=DOWN * 3, t2c={"green": "#00FF00", "0.4 * 0.5 * 0.7": "#FFFF00", "14%": "#FFFF00"}),
+            *self.swap_caption(
+                "For example, green contributes 0.4 · 0.5 · 0.7 = 14% to the final color.",
+                t2c={"green": "#00FF00", "0.4 * 0.5 * 0.7": "#FFFF00", "14%": "#FFFF00"}
+            ),
             *[MoveToTarget(j) for j in self.green_contributes_group],
             FadeIn(brace_group)
         )
@@ -275,18 +302,25 @@ class MainScene(CGScene):
             j.target.scale(1 / 1.2)
             j.target.set_color("#FFFFFF")
         self.play(
-            *self.swap_caption("Note that the order of the colors matters for the end result.", pos=DOWN * 3),
+            *self.swap_caption(
+                "Note that the order of the colors matters for the end result.",
+                t2c={"order": "#FFFF00"},
+                t2s={"matters": ITALIC}
+            ),
             *[MoveToTarget(j) for j in self.green_contributes_group],
             FadeOut(brace_group)
         )
         self.wait(3)
 
         self.play(
-            *self.swap_caption("For example, even though red had a higher alpha than magenta (0.8 > 0.3), it has less influence because it is further in the back.", pos=DOWN * 3, t2c={"red": "#FF0000", "magenta": "#FF00FF", "0.8": "#FF0000", "0.3": "#FF00FF"})
+            *self.swap_caption(
+                "For example, even though red had a higher alpha than magenta (0.8 > 0.3), it's less visible because it's further in the back.",
+                t2c={"red": "#FF0000", "magenta": "#FF00FF", "0.8": "#FF0000", "0.3": "#FF00FF"}
+            )
         )
         self.wait(3)
 
-HIGH_QUALITY = False
+HIGH_QUALITY = True
 START_AT = 0
 END_AT = 1000
 
