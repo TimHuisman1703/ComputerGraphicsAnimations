@@ -5,11 +5,13 @@ if __name__ == "__main__":
 from manim import *
 import numpy as np
 import os
+import time
 
 DIRECTORY = os.path.realpath(os.path.dirname(__file__))
 BACKGROUND_COLOR = "#36393F"
 
 config.background_color = BACKGROUND_COLOR
+config.max_files_cached = 1000
 
 def render_video(filename, high_quality=True, start_at=0, end_at=1000):
     command = "echo lmao"
@@ -26,7 +28,11 @@ def render_video(filename, high_quality=True, start_at=0, end_at=1000):
         command = f"manim {filename} MainScene -p --disable_caching --from_animation_number {start_at},{end_at} --resolution 480,270 --frame_rate 5"
 
     print(f"\033[0;32m{command}\033[0m")
+    start_time = time.time()
     os.system(command)
+    end_time = time.time()
+
+    print(f"\033[36;1mTotal time: {end_time - start_time:.4} seconds\033[0m")
 
 class CGScene(ThreeDScene):
     def get_title(self):
@@ -72,12 +78,15 @@ class CGScene(ThreeDScene):
     def get_animation_number(self):
         return self.num_plays
 
+    def set_caption_pos(self, pos):
+        self.default_caption_pos = pos
+    
     def swap_caption(self, text, **kwargs):
         # Set default kwargs
         t2c = kwargs.get("t2c", {})
         t2s = kwargs.get("t2s", {})
         scale = kwargs.get("scale", 0.7)
-        pos = kwargs.get("pos", DOWN * 2.8)
+        pos = kwargs.get("pos", self.default_caption_pos)
 
         # Group text in new lines
         texts = text.split()
@@ -143,6 +152,11 @@ class CGScene(ThreeDScene):
             return Uncreate(obj)
 
     def construct(self):
+        # Course
+        self.course_text = Text("CSE2215 Computer Graphics").set_color("#FFFFFF").set_opacity(0.5)
+        self.course_text.scale(0.6).to_corner(LEFT + UP)
+        self.add(self.course_text)
+
         # Title
         self.title_text = Text(self.get_title()).set_color("#FFFFFF")
         self.title_text.generate_target()
@@ -155,13 +169,15 @@ class CGScene(ThreeDScene):
         self.title_text.target.scale(0.6)
         self.title_text.target.to_corner(LEFT + UP)
         self.play(
+            FadeOut(self.course_text),
             MoveToTarget(self.title_text),
-            run_time = 0.4
+            run_time=0.4
         )
         self.add_fixed_in_frame_mobjects(self.title_text)
 
         # Default values
         self.caption = None
+        self.default_caption_pos = DOWN * 2.8
 
         # Run animation
         self.animate()
