@@ -24,7 +24,8 @@ class MainScene(CGScene):
 
         self.play(
             *self.swap_caption(
-                "Except, this Mona Lisa lacks a little in detail. We can count the texels when we're up close!"
+                "Except, this Mona Lisa lacks a little in detail. We can count the texels when we're up close!",
+                t2c={"count": "#FFFF00", "the": "#FFFF00", "texels": "#FFFF00"}
             ),
         )
         self.play(
@@ -32,7 +33,7 @@ class MainScene(CGScene):
             run_time=1.2
         )
         self.wait(3.5)
-        
+
         self.play(
             *self.swap_caption(
                 "Visible texels can ruin the observer's immersion, so we would like to hide them somehow.",
@@ -40,7 +41,7 @@ class MainScene(CGScene):
             ),
         )
         self.wait(4)
-        
+
         mona_lisa_detailed_texture.match_height(mona_lisa_original_texture).move_to(mona_lisa_original_texture)
         self.play(
             *self.swap_caption(
@@ -76,7 +77,7 @@ class MainScene(CGScene):
             run_time=0.8
         )
         self.wait(3.5)
-        
+
         self.play(
             *self.swap_caption(
                 "So how does it work?",
@@ -91,7 +92,7 @@ class MainScene(CGScene):
             FadeOut(interpolated_text),
             run_time=0.8
         )
-    
+
         COLORS = [
             ["#EDAE49", "#D1495B", "#D17C5B", "#EDAE49"],
             ["#30638E", "#003D5B", "#A01347", "#D1495B"],
@@ -142,7 +143,8 @@ class MainScene(CGScene):
 
         self.play(
             *self.swap_caption(
-                "Using bilinear interpolation, we'll make this color-to-color transition smoother."
+                "Using bilinear interpolation, we'll make this color-to-color transition smoother.",
+                t2c={"smoother": "#FFFF00"}
             ),
             *fade_out_actions,
         )
@@ -160,7 +162,7 @@ class MainScene(CGScene):
 
         # Place point, draw attention to it
         sample_point = Circle(radius=0.05).set_fill("#FFFFFF", opacity=1).set_stroke("#FFFFFF", opacity=1).move_to((-3 + 1.5 * X, 2.75 - 1.5 * Y, 0))
-        sample_point.z_index = 15
+        sample_point.set_z_index(15)
         self.play(
             FadeIn(sample_point, scale=7),
             run_time=0.6
@@ -182,7 +184,8 @@ class MainScene(CGScene):
             texel_centers.append(row)
         self.play(
             *self.swap_caption(
-                "The first thing we will do is represent each texel as a dot in its center."
+                "The first thing we will do is represent each texel as a dot in its center.",
+                t2c={"center": "#FFFF00"}
             )
         )
         self.play(
@@ -192,7 +195,8 @@ class MainScene(CGScene):
 
         self.play(
             *self.swap_caption(
-                "When sampling the color at some point, we only care about the four dots surrounding that point."
+                "When sampling the color at some point, we only care about the four dots surrounding that point.",
+                t2c={"surrounding": "#FFFF00"}
             )
         )
         self.wait(0.5)
@@ -201,7 +205,7 @@ class MainScene(CGScene):
             *[Line(texel_centers[1 < j][0 < j < 3], texel_centers[0 < j < 3][j < 2]) for j in range(4)]
         )
         for i in surrounding_square:
-            i.z_index = 5
+            i.set_z_index(5)
         self.play(
             *[Create(j) for j in surrounding_square],
             run_time=0.5
@@ -217,7 +221,7 @@ class MainScene(CGScene):
         cropped_texture.move_to(surrounding_square)
         corner_group = Group(texel_centers[0][0], texel_centers[0][1], texel_centers[1][0], texel_centers[1][1])
         for obj in corner_group:
-            obj.z_index = 10
+            obj.set_z_index(10)
 
         self.add(cropped_texture)
         self.add(sample_point)
@@ -266,7 +270,8 @@ class MainScene(CGScene):
             color_formula_group.add(square)
         self.play(
             *self.swap_caption(
-                "The color at our sample point will be some weighted average between the colors of these four texels."
+                "The color at our sample point will be some weighted average between the colors of these four texels.",
+                t2c={"weighted": "#FFFF00", "average": "#FFFF00"}
             ),
             FadeIn(result_formula_square, shift=RIGHT),
             FadeIn(weight_formula_group, shift=RIGHT),
@@ -303,11 +308,12 @@ class MainScene(CGScene):
         )
         self.play(
             *self.swap_caption(
-                "These weights are decided by the proximity of our point to each of the texel centers."
+                "These weights are decided by the proximity of our point to each of the texel centers.",
+                t2c={"proximity": "#FFFF00"}
             )
         )
         for i in distance_group:
-            i.z_index = 5
+            i.set_z_index(5)
             i.set_color("#FFFFFF")
         self.wait(4)
 
@@ -337,7 +343,7 @@ class MainScene(CGScene):
         self.play(
             *self.swap_caption(
                 "More specifically, the weight of a certain texel depends on the area of the rectangle opposing it.",
-                t2c={"area": "#FFFF00"}
+                t2c={"area": "#FFFF00", "opposing": "#FFFF00"}
             ),
             *[Create(j) for j in distance_group],
         )
@@ -393,7 +399,8 @@ class MainScene(CGScene):
         # Move around sample point
         self.play(
             *self.swap_caption(
-                "The closer the sample point is to a corner, the bigger its opposing rectangle, the higher its weight, and the more dominant the color becomes."
+                "The closer the sample point is to a corner, the bigger its opposing rectangle, the higher its weight, and the more dominant the color becomes.",
+                t2c={"closer": "#FFFF00", "more": "#FFFF00", "dominant": "#FFFF00"}
             )
         )
         self.wait(0.5)
@@ -499,7 +506,7 @@ class MainScene(CGScene):
         zero_zero_label = Tex("$(0, 0)$").set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(0.8).move_to(corner_group[2].get_center() + np.array([0, -0.4, 0]))
         one_one_label = Tex("$(1, 1)$").set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(0.8).move_to(corner_group[1].get_center() + np.array([0, 0.4, 0]))
         alpha_beta_label = MathTex("(\\alpha, \\beta)", substrings_to_isolate=["\\alpha", "\\beta"]).set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(0.8).move_to(sample_point.get_center() + np.array([0.6, 0.5, 0]))
-        alpha_beta_label.z_index = 100
+        alpha_beta_label.set_z_index(100)
         distance_label_group = Group(
             MathTex("\\alpha", substrings_to_isolate=["\\alpha", "\\beta"]).set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(0.6).next_to(distance_group[0].get_center(), UP, buff=0.1),
             MathTex("1 - \\alpha", substrings_to_isolate=["\\alpha", "\\beta"]).set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(0.6).next_to(distance_group[1].get_center(), UP, buff=0.1),
@@ -597,7 +604,7 @@ class MainScene(CGScene):
             position = ((1 - alpha) * corner_pos[0] + alpha * corner_pos[1]) * (1 - beta) + ((1 - alpha) * corner_pos[2] + alpha * corner_pos[3]) * beta
 
             square = Square(0.3).set_stroke(opacity=0).set_fill(color, opacity=1).move_to(position)
-            square.z_index = 75
+            square.set_z_index(75)
             pixel_group.add(square)
 
         mask_rectangle = Rectangle(BACKGROUND_COLOR, 1, 1.5).shift((-7.05, 1.65, 0)).set_stroke(opacity=0).set_fill(opacity=1)
@@ -605,7 +612,8 @@ class MainScene(CGScene):
         self.add_foreground_mobject(mask_rectangle)
         self.play(
             *self.swap_caption(
-                "If we apply this formula to a bunch of points, we get a nice gradient square."
+                "If we apply this formula to a bunch of points, we get a nice gradient square.",
+                t2c={"gradient": "#FFFF00"}
             ),
             FadeOut(rectangle_group),
             FadeOut(area_label_group),
@@ -645,7 +653,8 @@ class MainScene(CGScene):
         self.remove(cropped_texture)
         self.play(
             *self.swap_caption(
-                "And after repeating the same process for each region in between texel centers, we end up with a smooth pattern."
+                "And after repeating the same process for each region in between texel centers, we end up with a smooth pattern.",
+                t2c={"smooth": "#FFFF00", "pattern": "#FFFF00"}
             ),
             FadeOut(result_formula_square, shift=LEFT * 3),
             FadeOut(color_formula_group, shift=LEFT * 3),
@@ -673,8 +682,7 @@ class MainScene(CGScene):
                 else:
                     texel_center_edge_group.add(texel_center)
         for obj in [inner_rectangle, *inner_lines, *texel_center_inner_group]:
-            obj.z_index = 80
-
+            obj.set_z_index(80)
 
         # Show final version
         bilinear_interpolation_text = Tex("Interpolated").scale(0.6).set_opacity(0.5).next_to(nearest_neighbor_texture, UP)
@@ -703,14 +711,16 @@ class MainScene(CGScene):
 
         self.play(
             *self.swap_caption(
-                "This looks good already, but what do we do about the edges?"
+                "This looks good already, but what do we do about the edges?",
+                t2c={"edges": "#FFFF00"}
             )
         )
         self.wait(3)
 
         self.play(
             *self.swap_caption(
-                "Since there are no extra texels around the image, we'll have to extend the texture ourselves somehow."
+                "Since there are no extra texels around the image, we'll have to extend the texture ourselves somehow.",
+                t2c={"extend": "#FFFF00"}
             ),
             *[FadeIn(j, scale=3) for j in texel_center_edge_group]
         )
@@ -752,10 +762,10 @@ class MainScene(CGScene):
                 clamped_rectangle.set_fill(COLORS[max(0, min(iy, 2))][max(0, min(ix, 3))])
                 clamped_edges_fade_in_actions.append(FadeIn(clamped_rectangle, shift=-direction))
                 clamped_edges_fade_out_actions.append(FadeOut(clamped_rectangle))
-        
+
         bilinear_interpolation_clamp_text = Tex("Interpolated (Clamped)").set_opacity(0.5)
         bilinear_interpolation_clamp_text.scale(0.6).next_to(nearest_neighbor_texture, UP)
-        bilinear_interpolation_clamp_text.z_index = 100
+        bilinear_interpolation_clamp_text.set_z_index(100)
         self.play(
             FadeOut(bilinear_interpolation_text, shift=RIGHT),
             FadeIn(bilinear_interpolation_clamp_text, shift=RIGHT),
@@ -774,7 +784,7 @@ class MainScene(CGScene):
 
         bilinear_interpolation_repeat_text = Tex("Interpolated (Repeated)").set_opacity(0.5)
         bilinear_interpolation_repeat_text.scale(0.6).next_to(nearest_neighbor_texture, UP)
-        bilinear_interpolation_repeat_text.z_index = 100
+        bilinear_interpolation_repeat_text.set_z_index(100)
         self.play(
             FadeOut(bilinear_interpolation_clamp_text, shift=RIGHT),
             FadeOut(interpolated_clamp_texture),
