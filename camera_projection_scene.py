@@ -7,18 +7,20 @@ class MainScene(CGScene):
         return "Camera Projection"
 
     def animate(self):
-        def cubify(point):
-            factor = max([abs(j) for j in point])
-            factor = pow(factor, 2 / 3)
-            if factor < 1e-6:
-                return point
-            return point / factor
-        
+        def cubify(points, power):
+            for i in range(points.shape[0]):
+                p = points[i]
+                factor = max([abs(j) for j in p])
+                factor = pow(factor, power)
+                if factor > 1e-6:
+                    points[i] = p / factor
+            return points
+
         def apply_transformation(matrix, point):
             vector = np.array([point[0], point[2], -point[1], 1])
             result = matrix @ vector
             return np.array([result[0] / result[3], -result[2] / result[3], result[1] / result[3]])
-        
+
         self.play(
             *self.swap_caption(
                 "When a camera takes a picture of a scene, each point in space is mapped to a pixel on screen.",
@@ -30,6 +32,7 @@ class MainScene(CGScene):
         self.play(
             *self.swap_caption(
                 "This conversion from 3D to 2D is done using three matrices.",
+                t2c={"three": "#FFFF00", "matrices": "#FFFF00"}
             )
         )
 
@@ -79,7 +82,7 @@ class MainScene(CGScene):
             Text("Model View Matrix").set_color("#BFBFBF").set_background_stroke(color=BACKGROUND_COLOR, width=3).scale(0.6).next_to(matrix_group[2], DOWN)
         )
         for obj in matrix_group:
-            obj.z_index = 100
+            obj.set_z_index(75)
             self.add_fixed_in_frame_mobjects(obj)
         self.play(
             FadeIn(matrix_group)
@@ -97,18 +100,12 @@ class MainScene(CGScene):
         object_group = Group(
             Sphere(radius=1).set_color("#00BF00"),
             Sphere(radius=0.9).set_color("#7F007F").shift((-0.7, -0.3, 0.9)),
-            Sphere(radius=0.5).set_color("#FF0000").shift((0.9, 0.2, 0.5)),
-            Sphere(radius=0.3).set_color("#007FFF").shift((0.7, 1.4, 0.3))
+            Cylinder(radius=0.5, height=1, resolution=(1, 24)).set_color("#FF0000").shift((0.9, 0.2, 0.5)),
+            Cube(side_length=0.6, fill_opacity=1).set_color("#007FFF").shift((0.6, 1.3, 0.3)).rotate(0.3 * pi)
         )
-        self.play(
-            ApplyPointwiseFunction(
-                lambda point: cubify(point),
-                object_group[0]
-            ),
-            run_time=0
-        )
-        self.remove(object_group[0])
-        object_group[0].scale(2).stretch(0.05, 2).shift(0.1 * IN)
+
+        object_group[0].apply_points_function_about_point(lambda p: cubify(p, 0.65))
+        object_group[0].scale(2).stretch(0.05, 2).shift(0.102 * IN)
         axes = ThreeDAxes(
             x_range=[-3, 3, 1],
             y_range=[-3, 3, 1],
@@ -117,7 +114,7 @@ class MainScene(CGScene):
             y_length = 6.5,
             z_length = 6.5,
         )
-        negative_x_label = Tex("$-x$").move_to(LEFT * 3.5)
+        negative_x_label = Tex("$-x$").move_to(LEFT * 3.7)
         positive_x_label = Tex("$x$").move_to(RIGHT * 3.5)
         negative_y_label = Tex("$-y$").move_to(DOWN * 3.5)
         positive_y_label = Tex("$y$").move_to(UP * 3.5)
@@ -148,14 +145,18 @@ class MainScene(CGScene):
 
         # Create and rotate camera and unit-cube group
         camera_group = Group(
-            Sphere(radius=0.1).set_color("#7FFFFF"),
-            *[Line(ORIGIN, 6 * points[j], stroke_width=2, color="#7FFFFF") for j in range(4)],
+            Dot3D(radius=0.1).set_color("#3FFFFF"),
+            *[Line(ORIGIN, 6 * points[j], stroke_width=2, color="#3FFFFF") for j in range(4)],
         )
         unit_cube_group = Group(
-            *[Line(NEAR * points[j], FAR * points[j], stroke_width=2, color="#7FFFFF") for j in range(4)],
+            *[Line(NEAR * points[j], FAR * points[j], stroke_width=2, color="#3FFFFF") for j in range(4)],
             *[Line(NEAR * points[j - 1], NEAR * points[j], stroke_width=2, color="#FFBF7F") for j in range(4)],
             *[Line(FAR * points[j - 1], FAR * points[j], stroke_width=2, color="#FF7FBF") for j in range(4)],
         )
+        for obj in [*camera_group, *unit_cube_group]:
+            obj.set_z_index(50)
+        for obj in unit_cube_group[4:8]:
+            obj.set_z_index(51)
         camera_group.rotate_about_origin(CAMERA_PHI, RIGHT).rotate_about_origin(CAMERA_THETA, OUT).shift(CAMERA_POSITION)
         unit_cube_group.rotate_about_origin(CAMERA_PHI, RIGHT).rotate_about_origin(CAMERA_THETA, OUT).shift(CAMERA_POSITION)
 
@@ -199,8 +200,8 @@ class MainScene(CGScene):
             frame_center=ORIGIN,
             added_anims=[
                 *self.swap_caption(
-                    "The first matrix we're going to use is meant to realign the scene, such that the camera is located at the origin.",
-                    t2c={"camera": "#FFFF00", "origin": "#FFFF00"}
+                    "First, we use the Model View Matrix to realign the scene, such that the camera is located at the origin.",
+                    t2c={"Model": "#FFFF00", "View": "#FFFF00", "Matrix": "#FFFF00", "camera": "#FFFF00", "origin": "#FFFF00"}
                 ),
                 FadeIn(matrix_group[2], shift=LEFT),
                 FadeIn(matrix_group[5], shift=LEFT),
@@ -213,7 +214,7 @@ class MainScene(CGScene):
         to_rotate_group.generate_target()
         to_rotate_group.target.shift(-CAMERA_POSITION).rotate_about_origin(-CAMERA_THETA, OUT).rotate_about_origin(-CAMERA_PHI, RIGHT)
         self.move_camera(
-            frame_center = UP * 3,
+            frame_center=UP * 3,
             added_anims=[
                 MoveToTarget(to_rotate_group),
             ],
@@ -224,14 +225,14 @@ class MainScene(CGScene):
         self.play(
             *self.swap_caption(
                 "The camera should also face the negative Z-axis, such that X points right and Y points up, like in a normal graph.",
-                t2c={"negative Z-axis": "#FFFF00"}
+                t2c={"negative": "#FFFF00", "Z-axis": "#FFFF00"}
             ),
         )
         self.wait(3.5)
 
         self.play(
             *self.swap_caption(
-                "The actual values in the Model View Matrix depend on the position and orientation of the camera.",
+                "The actual values in this matrix depend entirely on the position and orientation of the camera.",
             ),
         )
         self.wait(3.5)
@@ -251,7 +252,8 @@ class MainScene(CGScene):
         matrix_group[4].next_to(matrix_group[1], DOWN)
         self.play(
             *self.swap_caption(
-                "The second matrix we'll be using is a little complicated, so let's analyze the variables first.",
+                "The Projection Matrix we'll be using is a little complicated, so let's look at the variables first.",
+                t2c={"Projection": "#FFFF00", "Matrix": "#FFFF00"}
             ),
             FadeIn(matrix_group[1], shift=LEFT),
             FadeIn(matrix_group[4], shift=LEFT),
@@ -261,7 +263,7 @@ class MainScene(CGScene):
         self.play(
             *self.swap_caption(
                 "There are four variables: f, aspect, near and far.",
-                t2c={"[22:23]": "#FFFF3F", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
+                t2c={"[22:23]": "#3FFFFF", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
             ),
         )
         self.wait(3.5)
@@ -269,8 +271,8 @@ class MainScene(CGScene):
         # Describe f
         self.play(
             *self.swap_caption(
-                "f is the focal distance, which indicates how much the camera zooms in.",
-                t2c={"[0:1]": "#FFFF3F"}
+                "f is the focal distance, which controls the camera's zoom.",
+                t2c={"[0:1]": "#3FFFFF"}
             ),
         )
         self.wait(3.5)
@@ -283,7 +285,7 @@ class MainScene(CGScene):
             MoveToTarget(to_stretch_group),
             *self.swap_caption(
                 "If f gets larger, the camera's vision gets smaller, and it will seem as if the camera has zoomed in.",
-                t2c={"[2:3]": "#FFFF3F"}
+                t2c={"[2:3]": "#3FFFFF", "zoomed": "#FFFF00", "in": "#FFFF00"}
             ),
         )
         self.wait(3.5)
@@ -296,7 +298,7 @@ class MainScene(CGScene):
             MoveToTarget(to_stretch_group),
             *self.swap_caption(
                 "aspect defines the aspect ratio of the image. It works like f, but only affects the camera's vision horizontally.",
-                t2c={"[0:6]": "#7FFF7F", "[49:50]": "#FFFF3F"}
+                t2c={"[0:6]": "#7FFF7F", "[49:50]": "#3FFFFF", "[16:22]": "#FFFF00", "ratio": "#FFFF00"}
             ),
         )
         self.wait(2)
@@ -309,6 +311,7 @@ class MainScene(CGScene):
         self.play(
             *self.swap_caption(
                 "This is needed to make non-square images, which fit nicely on rectangular windows and monitors.",
+                t2c={"non-square": "#FFFF00"}
             ),
             to_squish_group.animate.stretch(0.6, 0, about_point = ORIGIN),
         )
@@ -373,10 +376,10 @@ class MainScene(CGScene):
             [0, 0, -1, 0]
         ])
         projection_matrix_inverse = np.linalg.inv(projection_matrix)
-        
+
         # Show frustrum
         frustrum = Cube(fill_color="#FFFF7F", stroke_width=0).set_opacity(0.25)
-        frustrum.z_index = 1
+        frustrum.set_z_index(1)
         self.play(
             ApplyPointwiseFunction(
                 lambda point: apply_transformation(projection_matrix_inverse, point),
@@ -388,6 +391,7 @@ class MainScene(CGScene):
         self.play(
             *self.swap_caption(
                 "This means that only objects within this space are rendered to the image.",
+                t2c={"within": "#FFFF00", "this": "#FFFF00", "space": "#FFFF00"}
             ),
             FadeIn(frustrum)
         )
@@ -395,8 +399,8 @@ class MainScene(CGScene):
 
         self.play(
             *self.swap_caption(
-                "This space is called a \"frustrum\", and its shape is influenced by f, aspect, near and far, as seen before.",
-                t2c={"[54:55]": "#FFFF3F", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
+                "This space is called a frustrum, and its shape is influenced by f, aspect, near and far, as seen before.",
+                t2c={"frustrum": "#FFFF00", "[52:53]": "#3FFFFF", "aspect": "#7FFF7F", "near": "#FFBF7F", "far": "#FF7FBF"}
             ),
         )
         self.wait(4)
@@ -404,7 +408,7 @@ class MainScene(CGScene):
         self.play(
             *self.swap_caption(
                 "The idea of projection is to transform the frustrum to a cube from (-1, -1, -1) to (1, 1, 1).",
-                t2c={"projection": "#FFFF00", "(-1, -1, -1)": "#FFFF00", "(1, 1, 1)": "#FFFF00"}
+                t2c={"projection": "#FFFF00", "cube": "#FFFF00"}
             ),
         )
         self.wait(4)
@@ -412,7 +416,7 @@ class MainScene(CGScene):
         self.play(
             FadeOut(frustrum),
             *self.swap_caption(
-                "This is done using the Projection Matrix, which turns the scene into this:",
+                "This is done using the Projection Matrix, which morphs the scene drastically.",
             ),
         )
         self.wait(1)
@@ -439,7 +443,8 @@ class MainScene(CGScene):
             phi=70 * DEGREES,
             added_anims=[
                 *self.swap_caption(
-                    "Side note: from here on out, we'll have the Z-axis pointing the opposite way, such that X points right, Y points up, and Z points away from the camera.",
+                    "From here on out, we'll have the Z-axis pointing the opposite direction, such that X points right, Y points up, and Z points away from the camera.",
+                    t2c={"opposite": "#FFFF00", "direction": "#FFFF00"}
                 ),
             ]
         )
@@ -455,12 +460,13 @@ class MainScene(CGScene):
         self.move_camera(
             theta=-90 * DEGREES,
             phi=90 * DEGREES,
-            frame_center=UP * 8,
+            zoom=2,
             added_anims=[
                 FadeOut(negative_z_label),
                 FadeOut(positive_z_label),
                 *self.swap_caption(
                     "This projection was the most important step, as we now have a 3D-looking scene in 2D.",
+                    t2c={"3D-looking": "#FFFF00", "2D": "#FFFF00"}
                 ),
                 FadeOut(matrix_group[1], shift=RIGHT),
                 FadeOut(matrix_group[4], shift=RIGHT),
@@ -472,32 +478,35 @@ class MainScene(CGScene):
         self.play(
             to_squish_group.animate.stretch(0.01, 1, about_point=ORIGIN),
             *self.swap_caption(
-                "If we were to flatten the cube, the scene still seems to have perspective, despite being flat.",
+                "If we were to flatten the cube, the scene would still seem to have perspective, despite actually being flat.",
+                t2c={"perspective": "#FFFF00", "[85:89]": "#FFFF00"}
             ),
+        )
+        self.wait(4)
+
+        self.play(
+            *self.swap_caption(
+                "However, since the Z-coordinates can still tell us how far away objects are from the camera, we'll remember them.",
+                t2c={"Z-coordinates": "#FFFF00", "how": "#FFFF00", "far": "#FFFF00", "away": "#FFFF00"}
+            ),
+            to_squish_group.animate.stretch(100, 1, about_point=ORIGIN),
         )
         self.wait(4)
 
         self.move_camera(
-            frame_center=ORIGIN,
+            zoom=1,
             added_anims=[
-                to_squish_group.animate.stretch(100, 1, about_point=ORIGIN),
                 *self.swap_caption(
-                    "We don't actually flatten the cube though, as the Z-coordinates are still useful to determine how far away objects are.",
+                    "We have now managed to create perspective in 2D, which is what we want, but we're not finished just yet.",
+                    t2c={"create": "#FFFF00", "perspective": "#FFFF00", "[35:37]": "#FFFF00", "2D": "#FFFF00"}
                 ),
             ]
-        )
-        self.wait(5)
-
-        self.play(
-            *self.swap_caption(
-                "We have now managed to create perspective in 2D, which is what we want, but there is still a small problem.",
-            ),
         )
         self.wait(4)
 
         self.play(
             *self.swap_caption(
-                "Our cube here is small, and screens don't count pixels from -1 to 1.",
+                "Our scene is still horizontally squished, and screens also don't count pixels from -1 to 1.",
             ),
         )
         self.wait(3)
@@ -510,6 +519,7 @@ class MainScene(CGScene):
             FadeIn(matrix_group[3], shift=LEFT),
             *self.swap_caption(
                 "To solve this, we use the Viewport Matrix, which just scales and translates the scene a bit.",
+                t2c={"Viewport": "#FFFF00", "Matrix": "#FFFF00"},
                 pos=DOWN * 3.1
             ),
         )
@@ -533,15 +543,18 @@ class MainScene(CGScene):
         )
         to_scale_group.generate_target()
         to_scale_group.target.stretch(0.5 * width / scale, dim=0, about_point=new_center)
-        to_scale_group.target.stretch(50, dim=1, about_point=new_center)
+        to_scale_group.target.stretch(0.5 * width / scale, dim=1, about_point=new_center)
         to_scale_group.target.stretch(0.5 * height / scale, dim=2, about_point=new_center)
-        self.play(
-            MoveToTarget(to_scale_group)
+        self.move_camera(
+            focal_distance=10000,
+            added_anims=[
+                MoveToTarget(to_scale_group)
+            ]
         )
 
         self.play(
             *self.swap_caption(
-                "Now each position correponds to a pixel between (0, 0) and, e.g., (1919, 1079), which the computer can understand.",
+                "In this case, each pixel from (0, 0) to (1919, 1079) now maps nicely to a position in the scene, making it more suitable for a 1920x1080 monitor.",
                 pos=DOWN * 3.1
             ),
         )
@@ -549,10 +562,13 @@ class MainScene(CGScene):
 
         # Voilá!
         self.move_camera(
-            frame_center=[0, -3, 0],
+            frame_center=ORIGIN,
+            zoom=1.6,
+            focal_distance=10000,
             added_anims=[
                 *self.swap_caption(
-                    "And voilá! A camera projection, made with a 3D scene and just three matrix transformations.",
+                    "And voilá! A 2D camera projection, made with a 3D scene and just three matrix transformations.",
+                    t2c={"2D": "#FFFF00", "camera": "#FFFF00", "projection": "#FFFF00"},
                     pos=DOWN * 3.1
                 ),
                 FadeOut(matrix_group[0], shift=RIGHT),
@@ -561,9 +577,9 @@ class MainScene(CGScene):
         )
         self.wait(2.5)
 
-HIGH_QUALITY = False
-START_AT = 25
-END_AT = 40
+HIGH_QUALITY = True
+START_AT = 0
+END_AT = 1000
 
 if __name__ == "__main__":
     render_video(os.path.realpath(__file__), HIGH_QUALITY, START_AT, END_AT)

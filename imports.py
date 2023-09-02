@@ -80,7 +80,7 @@ class CGScene(ThreeDScene):
 
     def set_caption_pos(self, pos):
         self.default_caption_pos = pos
-    
+
     def swap_caption(self, text, **kwargs):
         # Set default kwargs
         t2c = kwargs.get("t2c", {})
@@ -112,8 +112,9 @@ class CGScene(ThreeDScene):
         new_caption = Text(final_text, t2s=t2s).set_color("#FFFFFF")
         new_caption.scale(scale).shift(pos)
         new_caption._set_color_by_t2c(t2c)
-        new_caption.z_index = 100
+        new_caption.set_z_index(1000)
         new_caption.add_background_rectangle("#000000", 0.5, buff=0.2, corner_radius=0.2)
+        new_caption.background_rectangle.set_z_index(999)
         self.add_fixed_in_frame_mobjects(new_caption)
         actions = [FadeIn(new_caption, shift=UP)]
 
@@ -123,7 +124,7 @@ class CGScene(ThreeDScene):
 
         self.caption = new_caption
         return actions
-    
+
     def get_asset(self, filename):
         return f"{DIRECTORY}/assets/{filename}"
 
@@ -138,7 +139,7 @@ class CGScene(ThreeDScene):
             return MoveToTarget(obj)
         else:
             return Create(obj)
-    
+
     def disappear(self, obj):
         if type(obj) == Arrow:
             start = obj.get_start()
@@ -159,6 +160,7 @@ class CGScene(ThreeDScene):
 
         # Title
         self.title_text = Text(self.get_title()).set_color("#FFFFFF")
+        self.title_text.set_z_index(1000)
         self.title_text.generate_target()
         self.title_text.set_width(13)
         self.add(self.title_text)

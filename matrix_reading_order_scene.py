@@ -490,7 +490,7 @@ class MainScene(CGScene):
             matrix_group.animate.scale(1.2).move_to(UP * 0.5)
         )
         self.wait(0.5)
-        
+
         y1 = matrix_descriptions_texts[0].get_top()[1]
         y2 = matrices[0].get_bottom()[1]
         x1 = matrices[0].get_left()[0]
@@ -510,7 +510,7 @@ class MainScene(CGScene):
 
         self.play(
             self.appear(right_to_left_arrow),
-            Write(right_to_left_text)
+            FadeIn(right_to_left_text, shift=LEFT * 3)
         )
         self.wait(3.5)
 
@@ -520,7 +520,7 @@ class MainScene(CGScene):
                 t2c={"left-to-right": ORANGE, "object": YELLOW}
             ),
             self.appear(left_to_right_arrow),
-            Write(left_to_right_text)
+            FadeIn(left_to_right_text, shift=RIGHT * 3)
         )
         self.wait(3)
 
